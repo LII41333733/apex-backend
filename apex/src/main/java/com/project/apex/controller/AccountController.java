@@ -1,5 +1,6 @@
 package com.project.apex.controller;
 
+import com.project.apex.model.AccountBalance;
 import com.project.apex.model.Balance;
 //import com.project.apex.service.TradierService;
 import com.project.apex.service.AccountService;
@@ -33,8 +34,19 @@ public class AccountController {
     public ResponseEntity<ApiResponse<Balance>> getBalance() throws IOException {
         Balance balance = accountService.getBalance();
         logger.debug(balance);
-        System.out.println(balance);
         ApiResponse<Balance> response = new ApiResponse<>("Balance data retrieved successfully", HttpStatus.OK.value(), balance);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @PostMapping("/addNewAccountBalance")
+    public ResponseEntity<ApiResponse<AccountBalance>> addNewAccountBalance(@RequestBody AccountBalance accountBalance) throws IOException {
+        try {
+            accountService.addNewAccountBalance(accountBalance);
+        } catch (Exception e) {
+            logger.error(e);
+        }
+
+        ApiResponse<AccountBalance> response = new ApiResponse<>("Balance data saved successfully", HttpStatus.OK.value());
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

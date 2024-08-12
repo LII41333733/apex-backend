@@ -1,14 +1,7 @@
 package com.project.apex.websocket;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.project.apex.config.InitConfig;
-import com.project.apex.model.LiveOption;
 import com.project.apex.service.MarketService;
-import com.project.apex.utils.ApiRequest;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.java_websocket.client.WebSocketClient;
@@ -17,17 +10,11 @@ import org.java_websocket.handshake.ServerHandshake;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.stream.Collectors;
 
 // Version 1.8.0_31
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.http.HttpResponse;
-import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -46,18 +33,14 @@ public class MarketStream extends WebSocketClient {
     }
 
     public void connectAndStartStream() throws IOException, URISyntaxException {
-        if (this.isClosed()) {
-            connect(); // Open the WebSocket connection
-        }
+        connect(); // Open the WebSocket connection
         new Thread(this::startOptionChainStream).start();
     }
 
     @Override
     public void onOpen(ServerHandshake handshakedata) {
         System.out.println("Opened connection");
-        synchronized (this) {
-            notifyAll(); // Notify any waiting threads
-        }
+        send(marketService.buildOptionsStreamCall());
     }
 
     @Override
@@ -71,7 +54,7 @@ public class MarketStream extends WebSocketClient {
             if (type.equals("quote")) {
                 marketService.updateSymbolData(message);
             }
-        } catch (JsonProcessingException e) {
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
@@ -84,18 +67,29 @@ public class MarketStream extends WebSocketClient {
     @Override
     public void onError(Exception e) {
         System.err.println("Exception: " + e.getMessage());
-    }
+        // Attempt to reconnect on error
+        reconnectWithDelay();    }
 
     public void startOptionChainStream() {
-//        synchronized (this) {
-//            // Wait until the WebSocket connection is open
-//            try {
-//                wait(); // Wait until notified
-//            } catch (InterruptedException e) {
-//                e.printStackTrace();
-//            }
-//        }
+        if (this.isOpen()) {
+        } else {
+            logger.warn("WebSocket is not connected. Cannot start option chain stream.");
+        }
+    }
 
-        send(marketService.buildOptionsStreamCall());
+    private void reconnectWithDelay() {
+        new Thread(() -> {
+            try {
+                Thread.sleep(5000); // Wait for 5 seconds before attempting to reconnect
+                this.reconnectBlocking();
+                connectAndStartStream(); // Reconnect and restart the stream
+            } catch (InterruptedException | IOException | URISyntaxException e) {
+                logger.error("Failed to reconnect: " + e.getMessage(), e);
+            }
+        }).start();
+    }
+
+    public InitConfig getInitConfig() {
+        return initConfig;
     }
 }

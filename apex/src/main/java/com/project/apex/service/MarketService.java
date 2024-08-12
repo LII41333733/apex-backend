@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -80,6 +82,8 @@ public class MarketService {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbol", symbol);
         queryParams.put("expiration", nextExpiration);
+
+
         String response = ApiRequest.get(GET_OPTIONS_CHAIN, queryParams);
         JsonNode jsonNode = new ObjectMapper().readTree(response).path("options").path("option");
         return getOptionsSymbolList(jsonNode, optionType, price);
@@ -159,57 +163,65 @@ public class MarketService {
     }
 
     // Update symbol data with incoming JSON message
-    public void updateSymbolData(String jsonMessage) {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode jsonNode = objectMapper.readTree(jsonMessage);
+    public void updateSymbolData(String jsonMessage) throws IOException {
+        ObjectMapper objectMapper = new ObjectMapper();
 
-            String type = jsonNode.path("type").asText();
-            String symbol = jsonNode.path("symbol").asText();
-            double bid = jsonNode.path("bid").asDouble();
-            double ask = jsonNode.path("ask").asDouble();
+        if (initConfig.isMock()) {
+            String str = objectMapper.writeValueAsString(Files.newInputStream(Paths.get("src/main/resources/json/optionsChainExampleListOnly.json")));
 
-            LiveOption liveOption = new LiveOption(type, symbol, bid, ask);
+            System.out.println(str);
 
-            // Update the dataset only if the symbol exists in the map
-            if (symbolData.containsKey(symbol)) {
-                symbolData.put(symbol, liveOption);
-                System.out.println("Updated " + symbol + " with data: " + liveOption);
-            } else {
-                System.out.println("Symbol " + symbol + " not found in dataset.");
+            final Random random = new Random();
+            Timer timer = new Timer();
+            timer.schedule(new TimerTask() {
+                @Override
+                public void run() {
+                    for (Map.Entry<String, LiveOption> entry : symbolData.entrySet()) {
+                        LiveOption quote = entry.getValue();
+
+                        // Generate random bid and ask prices
+                        double bid = Math.round(random.nextDouble() * 200.0) / 100.0;
+                        double ask = Math.round(random.nextDouble() * 200.0) / 100.0;
+
+                        // Update bid and ask
+                        quote.setBid(bid);
+                        quote.setAsk(ask);
+
+                        // Print the updated quote
+                        System.out.println("Updated Quote: " + quote);
+
+                        try {
+                            clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quote));
+                        } catch (Exception e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }
+            }, 0, 2000); // Runs every 5 seconds
+
+        } else {
+            try {
+                JsonNode jsonNode = objectMapper.readTree(jsonMessage);
+
+                String type = jsonNode.path("type").asText();
+                String symbol = jsonNode.path("symbol").asText();
+                double bid = jsonNode.path("bid").asDouble();
+                double ask = jsonNode.path("ask").asDouble();
+
+                LiveOption liveOption = new LiveOption(type, symbol, bid, ask);
+
+                // Update the dataset only if the symbol exists in the map
+                if (symbolData.containsKey(symbol)) {
+                    symbolData.put(symbol, liveOption);
+                    System.out.println("Updated " + symbol + " with data: " + liveOption);
+                } else {
+                    System.out.println("Symbol " + symbol + " not found in dataset.");
+                }
+
+                clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(liveOption));
+            } catch (Exception e) {
+                System.err.println("Failed to parse message: " + e.getMessage());
             }
-
-            clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(liveOption));
-
-//            final Random random = new Random();
-//            Timer timer = new Timer();
-//            timer.schedule(new TimerTask() {
-//                @Override
-//                public void run() {
-//                    for (Map.Entry<String, LiveOption> entry : symbolData.entrySet()) {
-//                        LiveOption quote = entry.getValue();
-//
-//                        // Generate random bid and ask prices
-//                        double bid = Math.round(random.nextDouble() * 200.0) / 100.0;
-//                        double ask = Math.round(random.nextDouble() * 200.0) / 100.0;
-//
-//                        // Update bid and ask
-//                        quote.setBid(bid);
-//                        quote.setAsk(ask);
-//
-//                        // Print the updated quote
-//                        System.out.println("Updated Quote: " + quote);
-//
-//                        try {
-//                            clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quote));
-//                        } catch (Exception e) {
-//                            throw new RuntimeException(e);
-//                        }
-//                    }
-//                }
-//            }, 0, 2000); // Runs every 5 seconds
-        } catch (Exception e) {
-            System.err.println("Failed to parse message: " + e.getMessage());
         }
     }
 }

@@ -55,6 +55,23 @@ public class ApiRequest {
         final HttpResponse response = HttpClientBuilder.create().build().execute(request);
         return EntityUtils.toString(response.getEntity());
     }
+
+    public static String post(String url, Map<String, String> queryParams) throws URISyntaxException, IOException {
+        URIBuilder uriBuilder = new URIBuilder(url);
+        if (queryParams != null) {
+            for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+                uriBuilder.addParameter(entry.getKey(), entry.getValue());
+            }
+        }
+
+        HttpUriRequest request = RequestBuilder.get(uriBuilder.build())
+                .addHeader("Authorization", "Bearer " + ApiRequest.clientSecret)
+                .addHeader("Accept", "application/json")
+                .build();
+
+        final HttpResponse response = HttpClientBuilder.create().build().execute(request);
+        return EntityUtils.toString(response.getEntity());
+    }
 }
 
 

@@ -3,6 +3,7 @@ package com.project.apex.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.config.InitConfig;
+import com.project.apex.model.BuyData;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -23,7 +24,7 @@ public class TradeService {
         this.initConfig = initConfig;
     }
 
-
-
-
+    public void placeTrade(BuyData buyData) {
+        System.out.println(buyData.toString());
+    }
 }
