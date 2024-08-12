@@ -81,7 +81,9 @@ public class MarketService {
         queryParams.put("symbol", symbol);
         queryParams.put("expiration", nextExpiration);
         String response = ApiRequest.get(GET_OPTIONS_CHAIN, queryParams);
-        JsonNode jsonNode = new ObjectMapper().readTree(response).path("options").path("option");
+        JsonNode optionsNode = new ObjectMapper().readTree(response).path("options");
+        JsonNode options = Optional.ofNullable(optionsNode).filter(node -> !node.isNull()).orElseThrow();
+        JsonNode jsonNode = Optional.ofNullable(options.path("option")).filter(node -> !node.isNull()).orElseThrow();
         return getOptionsSymbolList(jsonNode, optionType, price);
     }
 
@@ -124,6 +126,7 @@ public class MarketService {
             return filteredSymbols;
         } catch (IOException e) {
             e.printStackTrace();
+            System.out.println("ERROR");
         }
         return List.of();
     }

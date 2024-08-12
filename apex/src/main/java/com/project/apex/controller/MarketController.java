@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -59,9 +60,14 @@ public class MarketController {
         try {
             List<String> list = marketService.setOptionsChainSymbols(symbol, optionType);
             response = new ApiResponse<>("Options template received successfully", HttpStatus.OK.value(), list);
+        } catch (NoSuchElementException e) {
+            var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
+            logger.warn(err);
+            response = new ApiResponse<>(err, HttpStatus.SERVICE_UNAVAILABLE.value(), e.getMessage());
         } catch (Exception e) {
-//            response = new ApiResponse<>("Error retrieving options template", HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
-            throw new RuntimeException("Error starting options chain stream");
+            var err = "Error retrieving options template";
+            logger.error(err);
+            response = new ApiResponse<>(err, HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
         }
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
