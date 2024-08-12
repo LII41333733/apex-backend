@@ -36,22 +36,42 @@ public class MarketController {
     }
 
     @GetMapping("/startOptionChainStream")
-    public ResponseEntity<ApiResponse<Object>> startOptionChainStream() {
+    public ResponseEntity<ApiResponse<Object>> startOptionChainStream() throws IOException {
         ApiResponse<Object> response;
 
-        if (marketStream.isOpen()) {
-            response = new ApiResponse<>("Stream already running", HttpStatus.OK.value());
-            marketStream.startOptionChainStream();
-        } else {
-            try {
-                marketStream.connectAndStartStream();
-            } catch (Exception e) {
-                throw new RuntimeException("Error starting options chain stream");
-            }
+        try {
+            marketStream.connectAndStartStream();
             response = new ApiResponse<>("Stream started successfully", HttpStatus.OK.value());
+
+        } catch (Exception e) {
+            throw new RuntimeException("Error starting options chain stream");
         }
+
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
+
+//    @GetMapping("/startOptionChainStream")
+//    public ResponseEntity<ApiResponse<Object>> startOptionChainStream() throws IOException {
+//        marketStream.startOptionChainStream();
+//
+//        ApiResponse<Object> response;
+//
+//        if (marketStream.isOpen()) {
+//            response = new ApiResponse<>("Stream already running", HttpStatus.OK.value());
+//        } else {
+//            if (marketStream.getInitConfig().isMock()) {
+//                marketService.updateSymbolData("");
+//            } else {
+//                try {
+//                    marketStream.connectAndStartStream();
+//                } catch (Exception e) {
+//                    throw new RuntimeException("Error starting options chain stream");
+//                }
+//            }
+//            response = new ApiResponse<>("Stream started successfully", HttpStatus.OK.value());
+//        }
+//        return new ResponseEntity<>(response, HttpStatus.OK);
+//    }
 
     @GetMapping("/getOptionChainTemplate")
     public ResponseEntity<ApiResponse<Object>> getOptionChainTemplate(String symbol, String optionType) {

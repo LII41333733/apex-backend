@@ -3,7 +3,9 @@ package com.project.apex.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.config.InitConfig;
+import com.project.apex.model.AccountBalance;
 import com.project.apex.model.Balance;
+import com.project.apex.repository.AccountBalanceRepository;
 import com.project.apex.websocket.ClientWebSocket;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -24,11 +26,13 @@ public class AccountService {
 
     private final ClientWebSocket clientWebSocket;
     private final InitConfig initConfig;
+    private final AccountBalanceRepository accountBalanceRepository;
 
     @Autowired
-    public AccountService (ClientWebSocket clientWebSocket, InitConfig initConfig) {
+    public AccountService (ClientWebSocket clientWebSocket, InitConfig initConfig, AccountBalanceRepository accountBalanceRepoitory) {
         this.clientWebSocket = clientWebSocket;
         this.initConfig = initConfig;
+        this.accountBalanceRepository = accountBalanceRepoitory;
     }
 
     private String getBaseApi() {
@@ -45,8 +49,11 @@ public class AccountService {
         return objectMapper.readValue(cashNode.toString(), Balance.class);
     }
 
+    public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
+        accountBalanceRepository.save(accountBalance);
+    }
+
     public JsonNode get(String url) throws IOException {
-        System.out.println(getBaseApi() + url);
         HttpUriRequest request = RequestBuilder
                 .get(getBaseApi() + url)
                 .addHeader("Authorization", "Bearer " + initConfig.getClientSecret())
