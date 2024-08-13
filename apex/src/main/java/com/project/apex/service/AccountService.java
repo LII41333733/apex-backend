@@ -46,6 +46,10 @@ public class AccountService {
 
         ObjectMapper objectMapper = new ObjectMapper();
         final JsonNode cashNode = new ObjectMapper().readTree(json.toString()).path("balances").path("cash");
+
+        //
+
+
         return objectMapper.readValue(cashNode.toString(), Balance.class);
     }
 
