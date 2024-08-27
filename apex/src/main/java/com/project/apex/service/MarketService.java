@@ -3,11 +3,10 @@ package com.project.apex.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.apex.config.InitConfig;
-import com.project.apex.model.LiveOption;
-import com.project.apex.model.OptionChainBean;
-import com.project.apex.utils.ApiRequest;
-import com.project.apex.websocket.ClientWebSocket;
+import com.project.apex.config.EnvConfig;
+import com.project.apex.data.QuoteData;
+import com.project.apex.component.ApiRequest;
+import com.project.apex.component.ClientWebSocket;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -35,36 +34,69 @@ import java.util.stream.Collectors;
 public class MarketService {
 
     private static final Logger logger = LogManager.getLogger(MarketService.class);
-
-    private final String BASE_API = "https://api.tradier.com/v1/markets/";
-    private final String GET_PRICE = BASE_API + "/quotes";
-    private final String GET_OPTIONS_CHAIN = BASE_API + "/options/chains";
-    private final LinkedHashMap<String, LiveOption> symbolData;
-    private final InitConfig initConfig;
-    private List<String> symbols;
+    private LinkedHashMap<String, QuoteData> optionsMap;
+    private List<String> symbolList;
+    private final EnvConfig envConfig;
     private final ClientWebSocket clientWebSocket;
+    ObjectMapper objectMapper = new ObjectMapper();
+    private String optionTypeState;
 
     @Autowired
-    public MarketService(InitConfig initConfig, ClientWebSocket clientWebSocket) {
-        this.symbolData = new LinkedHashMap<>();
-        this.initConfig = initConfig;
-        this.symbols = new ArrayList<>();
+    public MarketService(EnvConfig envConfig, ClientWebSocket clientWebSocket) {
+        this.envConfig = envConfig;
         this.clientWebSocket = clientWebSocket;
     }
 
-    public List<String> setOptionsChainSymbols(String symbol, String optionType) throws IOException, URISyntaxException {
+    private String getBaseApi() {
+        return envConfig.getApiEndpoint() + "/v1/markets";
+    }
+
+    public List<QuoteData> getOptionsChain(String symbol, String optionType) throws IOException, URISyntaxException {
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put("symbol", symbol);
+        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
+        String response = ApiRequest.get(getBaseApi() + "/options/chains", queryParams);
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode optionsNode = objectMapper.readTree(response).path("options");
+        JsonNode options = Optional.ofNullable(optionsNode).filter(node -> !node.isNull()).orElseThrow();
+        JsonNode quotes = Optional.ofNullable(options.path("option")).filter(node -> !node.isNull()).orElseThrow();
         BigDecimal price = getPrice(symbol);
-        boolean is0Dte = symbol.equals("SPY") || symbol.equals("QQQ");
-        String nextExpiration = getNextExpiration(is0Dte);
-        symbols = getOptionsChain(symbol, optionType, price, nextExpiration);
-        initializeSymbols(symbols);
-        return symbols;
+
+        try {
+            List<QuoteData> optionsList = objectMapper.readValue(quotes.toString(), new TypeReference<>() {});
+
+            // Filter the options based on criteria and map to symbol
+            List<QuoteData> list = optionsList.stream()
+                    .filter(option -> optionType.equalsIgnoreCase(option.getOptionType()))
+                    .filter(option -> {
+                        if ("put".equalsIgnoreCase(option.getOptionType())) {
+                            return option.getStrike().compareTo(price) < 0;
+                        } else {
+                            return option.getStrike().compareTo(price) > 0;
+                        }
+                    })
+                    .sorted("put".equalsIgnoreCase(optionType) ?
+                            Comparator.comparing(QuoteData::getStrike).reversed() :
+                            Comparator.comparing(QuoteData::getStrike))
+                            .limit(30)
+                                    .toList();
+
+            setOptionsMap(list.stream()
+                    .collect(Collectors.toMap(QuoteData::getSymbol, data -> data)));
+
+            setSymbolList(list.stream().map(QuoteData::getSymbol).collect(Collectors.toList()));
+
+            return list;
+        } catch (IOException e) {
+            logger.error("getOptionsChain", e);
+            return List.of();
+        }
     }
 
     public BigDecimal getPrice(String symbol) throws IOException, URISyntaxException {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbols", symbol);
-        String response = ApiRequest.get(GET_PRICE, queryParams);
+        String response = ApiRequest.get(getBaseApi() + "/quotes", queryParams);
         JsonNode jsonNode = new ObjectMapper().readTree(response).path("quotes").path("quote");
         String price = jsonNode.get("last").asText();
         return BigDecimal.valueOf(Double.parseDouble(price));
@@ -78,82 +110,23 @@ public class MarketService {
         return useDate.format(formatter);
     }
 
-    public List<String> getOptionsChain(String symbol, String optionType, BigDecimal price, String nextExpiration) throws IOException, URISyntaxException {
-        Map<String, String> queryParams = new HashMap<>();
-        queryParams.put("symbol", symbol);
-        queryParams.put("expiration", nextExpiration);
-
-
-        String response = ApiRequest.get(GET_OPTIONS_CHAIN, queryParams);
-        JsonNode optionsNode = new ObjectMapper().readTree(response).path("options");
-        JsonNode options = Optional.ofNullable(optionsNode).filter(node -> !node.isNull()).orElseThrow();
-        JsonNode jsonNode = Optional.ofNullable(options.path("option")).filter(node -> !node.isNull()).orElseThrow();
-        return getOptionsSymbolList(jsonNode, optionType, price);
-    }
-
-    public void initializeSymbols(List<String> symbols) {
-        for (String symbol : symbols) {
-            symbolData.put(symbol, null);
-        }
-    }
-
-    public List<String> getOptionsSymbolList(JsonNode jsonNode, String optionType, BigDecimal price) throws URISyntaxException, IOException {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            List<OptionChainBean> options = objectMapper.readValue(jsonNode.toString(), new TypeReference<>() {
-            });
-
-            // Filter the options based on criteria and map to symbol
-            List<String> filteredSymbols = options.stream()
-                    .filter(option -> optionType.equalsIgnoreCase(option.getOptionType()))
-                    .filter(option -> {
-                        if ("put".equalsIgnoreCase(option.getOptionType())) {
-                            return option.getStrike().compareTo(price) < 0;
-                        } else {
-                            return option.getStrike().compareTo(price) > 0;
-                        }
-                    })
-                    .sorted(Comparator.comparing(OptionChainBean::getStrike))
-                    .map(OptionChainBean::getSymbol)
-                    .toList();
-
-            // Reverse order if the option type is "put"
-            if ("put".equalsIgnoreCase(optionType)) {
-                // Reverse the list
-                filteredSymbols = filteredSymbols.stream()
-                        .sorted(Comparator.reverseOrder())
-                        .collect(Collectors.toList());
-            }
-
-            // Print the filtered symbols
-            System.out.println("Filtered Symbols: " + filteredSymbols);
-            return filteredSymbols;
-        } catch (IOException e) {
-            e.printStackTrace();
-            System.out.println("ERROR");
-        }
-        return List.of();
-    }
-
     public String buildOptionsStreamCall() {
         try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
             HttpPost post = new HttpPost("https://api.tradier.com/v1/markets/events/session");
             post.setHeader("Accept", "application/json");
-            post.setHeader("Authorization", "Bearer " + initConfig.getClientSecret());
-
+            post.setHeader("Authorization", "Bearer " + envConfig.getProdClientSecret());
             String jsonInputString = "{\"name\":\"John Doe\", \"age\":30}";
             StringEntity entity = new StringEntity(jsonInputString);
             post.setEntity(entity);
-
             HttpResponse response = httpClient.execute(post);
             final String jsonString = EntityUtils.toString(response.getEntity());
             ObjectMapper objectMapper = new ObjectMapper();
             JsonNode rootNode = objectMapper.readTree(jsonString);
-
             String sessionId = rootNode.path("stream").path("sessionid").asText();
-            String symbolsJsonArray = symbols.stream()
+            String symbolsJsonArray = getSymbolList().stream()
                     .map(symbol -> "\"" + symbol + "\"")
                     .collect(Collectors.joining(", ", "[", "]"));
+
             return "{" +
                     "\"symbols\": " + symbolsJsonArray + ", " +
                     "\"sessionid\": \"" + sessionId + "\", " +
@@ -166,65 +139,69 @@ public class MarketService {
     }
 
     // Update symbol data with incoming JSON message
-    public void updateSymbolData(String jsonMessage) throws IOException {
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        if (initConfig.isMock()) {
-            String str = objectMapper.writeValueAsString(Files.newInputStream(Paths.get("src/main/resources/json/optionsChainExampleListOnly.json")));
-
-            System.out.println(str);
-
-            final Random random = new Random();
-            Timer timer = new Timer();
-            timer.schedule(new TimerTask() {
-                @Override
-                public void run() {
-                    for (Map.Entry<String, LiveOption> entry : symbolData.entrySet()) {
-                        LiveOption quote = entry.getValue();
-
-                        // Generate random bid and ask prices
-                        double bid = Math.round(random.nextDouble() * 200.0) / 100.0;
-                        double ask = Math.round(random.nextDouble() * 200.0) / 100.0;
-
-                        // Update bid and ask
-                        quote.setBid(bid);
-                        quote.setAsk(ask);
-
-                        // Print the updated quote
-                        System.out.println("Updated Quote: " + quote);
-
-                        try {
-                            clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quote));
-                        } catch (Exception e) {
-                            throw new RuntimeException(e);
-                        }
-                    }
-                }
-            }, 0, 2000); // Runs every 5 seconds
-
-        } else {
-            try {
-                JsonNode jsonNode = objectMapper.readTree(jsonMessage);
-
-                String type = jsonNode.path("type").asText();
-                String symbol = jsonNode.path("symbol").asText();
-                double bid = jsonNode.path("bid").asDouble();
-                double ask = jsonNode.path("ask").asDouble();
-
-                LiveOption liveOption = new LiveOption(type, symbol, bid, ask);
-
-                // Update the dataset only if the symbol exists in the map
-                if (symbolData.containsKey(symbol)) {
-                    symbolData.put(symbol, liveOption);
-                    System.out.println("Updated " + symbol + " with data: " + liveOption);
-                } else {
-                    System.out.println("Symbol " + symbol + " not found in dataset.");
-                }
-
-                clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(liveOption));
-            } catch (Exception e) {
-                System.err.println("Failed to parse message: " + e.getMessage());
-            }
+    public void sendOptionsQuote(String jsonMessage) throws IOException {
+        try {
+            QuoteData quoteData = new QuoteData();
+            JsonNode quote = objectMapper.readTree(jsonMessage);
+            quoteData.setSymbol(quote.get("symbol").asText());
+            quoteData.setBid(new BigDecimal(quote.get("bid").asText()));
+            quoteData.setAsk(new BigDecimal(quote.get("ask").asText()));
+            quoteData.setOptionType(optionTypeState);
+            optionsMap.put(quoteData.getSymbol(), quoteData);
+            clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quoteData));
+        } catch (Exception e) {
+            System.err.println("Failed to parse message: " + e.getMessage());
         }
+    }
+
+    public void setOptionsMap(Map<String, QuoteData> optionsMap) {
+        this.optionsMap = new LinkedHashMap<>(optionsMap);
+    }
+
+    public List<String> getSymbolList() {
+        return symbolList;
+    }
+
+    public void setSymbolList(List<String> symbolList) {
+        this.symbolList = symbolList;
+    }
+
+    public Map<String, QuoteData> getOptionsMap() {
+        return optionsMap;
+    }
+
+    public void setDemoOptionsChain() throws IOException {
+        String str = objectMapper.writeValueAsString(Files.newInputStream(Paths.get("src/main/resources/json/optionsChainExampleListOnly.json")));
+
+        final Random random = new Random();
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                for (Map.Entry<String, QuoteData> entry : optionsMap.entrySet()) {
+                    QuoteData quote = entry.getValue();
+
+                    // Generate random bid and ask prices
+                    BigDecimal bid = BigDecimal.valueOf(Math.round(random.nextDouble() * 200.0) / 100.0);
+                    BigDecimal ask = BigDecimal.valueOf(Math.round(random.nextDouble() * 200.0) / 100.0);
+
+                    // Update bid and ask
+                    quote.setBid(bid);
+                    quote.setAsk(ask);
+
+                    // Print the updated quote
+//                        System.out.println("Updated QuoteData: " + quote);
+
+                    try {
+                        clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quote));
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+
+                    timer.cancel();
+                }
+            }
+        }, 0, 2000); // Runs every 5 seconds
+
     }
 }

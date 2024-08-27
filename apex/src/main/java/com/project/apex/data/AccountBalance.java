@@ -1,4 +1,4 @@
-package com.project.apex.model;
+package com.project.apex.data;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

@@ -1,12 +1,15 @@
 package com.project.apex.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.apex.config.InitConfig;
-import com.project.apex.model.AccountBalance;
-import com.project.apex.model.Balance;
+import com.project.apex.component.AccountState;
+import com.project.apex.config.EnvConfig;
+import com.project.apex.data.AccountBalance;
+import com.project.apex.data.Balance;
+import com.project.apex.data.Order;
 import com.project.apex.repository.AccountBalanceRepository;
-import com.project.apex.websocket.ClientWebSocket;
+import com.project.apex.component.ClientWebSocket;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -15,58 +18,135 @@ import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class AccountService {
 
     private static final Logger logger = LoggerFactory.getLogger(AccountService.class);
-
     private final ClientWebSocket clientWebSocket;
-    private final InitConfig initConfig;
+    private final EnvConfig envConfig;
     private final AccountBalanceRepository accountBalanceRepository;
+    private final AccountState accountState;
+//    private final AccountStream accountStream;
 
     @Autowired
-    public AccountService (ClientWebSocket clientWebSocket, InitConfig initConfig, AccountBalanceRepository accountBalanceRepoitory) {
+    public AccountService (
+            @Lazy ClientWebSocket clientWebSocket,
+            EnvConfig envConfig,
+            AccountBalanceRepository accountBalanceRepoitory,
+            AccountState accountState
+//            AccountStream accountStream
+    ) {
         this.clientWebSocket = clientWebSocket;
-        this.initConfig = initConfig;
+        this.envConfig = envConfig;
         this.accountBalanceRepository = accountBalanceRepoitory;
+        this.accountState = accountState;
+//        this.accountStream = accountStream;
+    }
+
+    public void init() throws IOException {
+//        Balance balanceData = getBalanceData();
+//        accountState.setBalanceData(balanceData);
+//        accountStream.startStream();
     }
 
     private String getBaseApi() {
-        return "https://api.tradier.com/v1/accounts/" + initConfig.getClientId();
+        return envConfig.getApiEndpoint() + "/v1/accounts/" + envConfig.getClientId();
     }
 
-    public Balance getBalance() throws IOException {
-        JsonNode json = get("/balances");
-
-        logger.info(json.toString());
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        final JsonNode cashNode = new ObjectMapper().readTree(json.toString()).path("balances").path("cash");
-
-        //
-
-
-        return objectMapper.readValue(cashNode.toString(), Balance.class);
-    }
-
-    public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
-        accountBalanceRepository.save(accountBalance);
-    }
-
-    public JsonNode get(String url) throws IOException {
+    public String get(String url) throws IOException {
         HttpUriRequest request = RequestBuilder
                 .get(getBaseApi() + url)
-                .addHeader("Authorization", "Bearer " + initConfig.getClientSecret())
+                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
                 .addHeader("Accept", "application/json")
                 .build();
 
         final HttpResponse response = HttpClientBuilder.create().build().execute(request);
-        final String jsonString = EntityUtils.toString(response.getEntity());
-        return new ObjectMapper().readTree(jsonString);
+        String responseBody = EntityUtils.toString(response.getEntity());
+        return responseBody;
+    }
+
+    public String post(String url, Map<String, String> parameters) throws IOException {
+        RequestBuilder request = RequestBuilder
+                .post(getBaseApi() + url)
+                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
+                .addHeader("Accept", "application/json");
+//                .setEntity(entity)
+//                .build();
+
+        // Iterate over the map and add each parameter
+        for (Map.Entry<String, String> entry : parameters.entrySet()) {
+            request.addParameter(entry.getKey(), entry.getValue());
+        }
+
+        final HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
+        return EntityUtils.toString(response.getEntity());
+    }
+
+    public Balance getBalanceData() throws IOException {
+        logger.info("Retrieving balance data");
+        Balance balance = new Balance();
+        JsonNode balances = new ObjectMapper().readTree(get("/balances")).get("balances");
+
+        if (envConfig.isSandbox()) {
+            BigDecimal totalCash = new BigDecimal(balances.get("total_cash").asText()).setScale(2, RoundingMode.HALF_UP);
+            balance.setTotalEquity(new BigDecimal(balances.get("total_equity").asText()).setScale(2, RoundingMode.HALF_UP));
+            balance.setTotalCash(totalCash);
+            balance.setCashAvailable(totalCash);
+            balance.setUnsettledFunds(new BigDecimal(0));
+        } else {
+            balance.setUnsettledFunds(new BigDecimal(balances.get("cash").get("unsettled_funds").asText()).setScale(2, RoundingMode.HALF_UP));
+            balance.setCashAvailable(new BigDecimal(balances.get("cash").get("cash_available").asText()).setScale(2, RoundingMode.HALF_UP));
+        }
+
+        balance.setMarketValue(new BigDecimal(balances.get("market_value").asText()).setScale(2, RoundingMode.HALF_UP));
+        balance.setOpenPl(new BigDecimal(balances.get("open_pl").asText()).setScale(2, RoundingMode.HALF_UP));
+        balance.setClosePl(new BigDecimal(balances.get("close_pl").asText()).setScale(2, RoundingMode.HALF_UP));
+        balance.setPendingCash(new BigDecimal(balances.get("pending_cash").asText()).setScale(2, RoundingMode.HALF_UP));
+        balance.setUnclearedFunds(new BigDecimal(balances.get("uncleared_funds").asText()).setScale(2, RoundingMode.HALF_UP));
+        return balance;
+    }
+
+    // Order
+    public String getOrder(String id) throws IOException {
+        logger.info("Retrieving order data");
+//        Balance balanceData = new Balance();
+        JsonNode order = new ObjectMapper().readTree(get("/orders/" + id)).get("order");
+        return order.toString();
+    }
+
+    public String getOrders() throws IOException {
+        logger.trace("Retrieving orders data");
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode response = new ObjectMapper().readTree(get("/orders")).get("orders");
+
+        if (response.asText().equals("null")) {
+            throw new IOException("Orders is null");
+        }
+
+        List<Order> orders = objectMapper.readValue(objectMapper.readTree(response.toString()).get("order").toString(), new TypeReference<>() {});
+
+        for (Order order : orders) {
+            System.out.println(order.getStatus());
+        }
+
+        return orders.toString();
+    }
+
+
+
+
+
+    public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
+        accountBalanceRepository.save(accountBalance);
     }
 
 //    public void sendBalance() throws IOException {

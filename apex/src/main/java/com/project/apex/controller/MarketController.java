@@ -1,15 +1,13 @@
 package com.project.apex.controller;
 
-import com.project.apex.model.Balance;
 //import com.project.apex.service.TradierService;
-import com.project.apex.model.LiveOption;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.apex.data.QuoteData;
 import com.project.apex.service.MarketService;
-import com.project.apex.utils.ApiResponse;
-import com.project.apex.websocket.MarketStream;
+import com.project.apex.component.MarketStream;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
@@ -30,65 +28,32 @@ public class MarketController {
 
     @Autowired
     public MarketController(MarketStream marketStream, MarketService marketService) {
-        Assert.notNull(marketStream, "marketStream must not be null");
         this.marketStream = marketStream;
         this.marketService = marketService;
     }
 
-    @GetMapping("/startOptionChainStream")
-    public ResponseEntity<ApiResponse<Object>> startOptionChainStream() throws IOException {
-        ApiResponse<Object> response;
-
+    @GetMapping("/getOptionsChain")
+    public ResponseEntity<?> getOptionsChain(String symbol, String optionType) {
         try {
-            marketStream.connectAndStartStream();
-            response = new ApiResponse<>("Stream started successfully", HttpStatus.OK.value());
+            List<QuoteData> list = marketService.getOptionsChain(symbol, optionType);
 
-        } catch (Exception e) {
-            throw new RuntimeException("Error starting options chain stream");
-        }
+            if (!list.isEmpty()) {
+                MarketStream response = marketStream.createAndConnectNewWebSocketClient();
 
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
+                if (response == null) {
+                    return new ResponseEntity<>("Error connecting to the Market Stream", HttpStatus.INTERNAL_SERVER_ERROR);
+                }
+            }
 
-//    @GetMapping("/startOptionChainStream")
-//    public ResponseEntity<ApiResponse<Object>> startOptionChainStream() throws IOException {
-//        marketStream.startOptionChainStream();
-//
-//        ApiResponse<Object> response;
-//
-//        if (marketStream.isOpen()) {
-//            response = new ApiResponse<>("Stream already running", HttpStatus.OK.value());
-//        } else {
-//            if (marketStream.getInitConfig().isMock()) {
-//                marketService.updateSymbolData("");
-//            } else {
-//                try {
-//                    marketStream.connectAndStartStream();
-//                } catch (Exception e) {
-//                    throw new RuntimeException("Error starting options chain stream");
-//                }
-//            }
-//            response = new ApiResponse<>("Stream started successfully", HttpStatus.OK.value());
-//        }
-//        return new ResponseEntity<>(response, HttpStatus.OK);
-//    }
-
-    @GetMapping("/getOptionChainTemplate")
-    public ResponseEntity<ApiResponse<Object>> getOptionChainTemplate(String symbol, String optionType) {
-        ApiResponse<Object> response;
-
-        try {
-            List<String> list = marketService.setOptionsChainSymbols(symbol, optionType);
-            response = new ApiResponse<>("Options template received successfully", HttpStatus.OK.value(), list);
+            return new ResponseEntity<>(list, HttpStatus.OK);
         } catch (NoSuchElementException e) {
             var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
             logger.warn(err);
-            response = new ApiResponse<>(err, HttpStatus.SERVICE_UNAVAILABLE.value(), e.getMessage());
+           return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
         } catch (Exception e) {
             var err = "Error retrieving options template";
             logger.error(err);
-            response = new ApiResponse<>(err, HttpStatus.INTERNAL_SERVER_ERROR.value(), e.getMessage());
+           return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
         }
-        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 }

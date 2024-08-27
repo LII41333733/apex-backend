@@ -1,5 +1,6 @@
-package com.project.apex.model;
+package com.project.apex.data;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
@@ -15,6 +16,12 @@ public class OptionChainBean {
 
     @JsonProperty("strike")
     private BigDecimal strike;
+
+    @JsonProperty("bid")
+    private BigDecimal bid;
+
+    @JsonProperty("ask")
+    private BigDecimal ask;
 
     // Getters and Setters
 
@@ -40,5 +47,21 @@ public class OptionChainBean {
 
     public void setStrike(BigDecimal strike) {
         this.strike = strike;
+    }
+
+    public BigDecimal getBid() {
+        return bid;
+    }
+
+    public void setBid(BigDecimal bid) {
+        this.bid = bid;
+    }
+
+    public BigDecimal getAsk() {
+        return ask;
+    }
+
+    public void setAsk(BigDecimal ask) {
+        this.ask = ask;
     }
 }

@@ -4,9 +4,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class InitConfig {
+public class EnvConfig {
 
-    @Value("DEV")
+    @Value("${spring.profiles.active}")
     private String environment;
 
     @Value("${tradier.clientId}")
@@ -14,6 +14,12 @@ public class InitConfig {
 
     @Value("${tradier.clientSecret}")
     private String clientSecret;
+
+    @Value("${tradier.prodClientSecret}")
+    private String prodClientSecret;
+
+    @Value("${tradier.apiEndpoint}")
+    private String apiEndpoint;
 
     public String getClientId() {
         return clientId;
@@ -27,11 +33,19 @@ public class InitConfig {
         return clientSecret;
     }
 
-    public boolean isMock() {
-        return environment.equals("MOCK");
+    public boolean isSandbox() {
+        return environment.equals("sandbox");
     }
 
-    public boolean isDev() {
-        return environment.equals("DEV");
+    public boolean isProduction() {
+        return environment.equals("production");
+    }
+
+    public String getApiEndpoint() {
+        return apiEndpoint;
+    }
+
+    public String getProdClientSecret() {
+        return prodClientSecret;
     }
 }

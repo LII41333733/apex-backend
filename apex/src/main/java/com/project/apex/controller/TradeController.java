@@ -1,18 +1,16 @@
 package com.project.apex.controller;
 
-import com.project.apex.model.BuyData;
-import com.project.apex.model.OptionChainBean;
+import com.project.apex.data.BuyData;
+import com.project.apex.data.SandboxTradeRequest;
 import com.project.apex.service.AccountService;
 import com.project.apex.service.TradeService;
-import com.project.apex.utils.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.util.Assert;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.NoSuchElementException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,34 +20,81 @@ import org.apache.logging.log4j.Logger;
 public class TradeController {
 
     private static final Logger logger = LogManager.getLogger(TradeController.class);
-
     private final TradeService tradeService;
     private final AccountService accountService;
 
     @Autowired
     public TradeController(TradeService tradeService, AccountService accountService) {
-        Assert.notNull(tradeService, "tradeService must not be null");
-        Assert.notNull(accountService, "accountService must not be null");
         this.tradeService = tradeService;
         this.accountService = accountService;
     }
 
+    @PostMapping("/placeSandboxTrade")
+    public ResponseEntity<?> placeSandboxTrade(@RequestBody SandboxTradeRequest sandboxTradeRequest) throws IOException {
+        try {
+            String response = tradeService.placeSandboxTrade(sandboxTradeRequest);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+        } catch (NoSuchElementException e) {
+            var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
+            logger.warn(err);
+            return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
+        } catch (Exception e) {
+            logger.error(e);
+            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @PostMapping("/placeTrade")
-    public ResponseEntity<ApiResponse<List<OptionChainBean>>> placeTrade(@RequestBody BuyData buyData) throws IOException {
+    public ResponseEntity<?> placeTrade(@RequestBody BuyData buyData) throws IOException {
         System.out.println(buyData.toString());
 
         try {
             tradeService.placeTrade(buyData);
+            return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.error(e);
+            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
+        // onclick od Bid/Ask update price
+        // Send balance data every (s) seconds
+        // get market value based on the last sent balance data in state
+        // + Check price against the amount of cons to be bought based on 1% market value (try/catch)
+        // + (feature) Add losses from last trade
 
+        // Place trade OTOCO
+        // save trade to trades table
 
+        /*
+        * Trade
+        *
+        * id
+        * status
+        * type
+        * timePlaced
+        * timeFille
+        * kd
+        * # cons
+        * symbol
+        * cost
+        * optionType
+        * Strike
+        * pl
+        * stop_loss
+        * target_sell
+        * target_hit
+        * loss_id
+        * */
 
+        /*
+        * SQL
+        * - find last loss, see if any current order has a loss id associated. if not, use losses on current option.
+        * - if so, then losses are accounted for and 1% should be used
+        * */
 
-        ApiResponse<List<OptionChainBean>> response = new ApiResponse<>("Started Trade Placeing...", HttpStatus.OK.value());
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        // Attempt to create account session onload (in init)
+        // Create a state for orders that gets updated when each piece is found. When closed,
+        // Track the status of the order by creating a log on BE and send thru stream to be saved on FE
     }
 
 

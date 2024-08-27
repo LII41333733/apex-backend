@@ -1,0 +1,25 @@
+{"balances": {
+  "account_number": "6YA64771",
+  "account_type": "cash",
+  "cash": {
+    "cash_available": 165.0,
+    "sweep": 0,
+    "unsettled_funds": 0
+  },
+  "close_pl": 0,
+  "current_requirement": 0,
+  "equity": 0,
+  "long_market_value": 0,
+  "market_value": 0,
+  "open_pl": 0,
+  "option_long_value": 0,
+  "option_requirement": 0,
+  "option_short_value": 0,
+  "pending_cash": 0,
+  "pending_orders_count": 0,
+  "short_market_value": 0,
+  "stock_long_value": 0,
+  "total_cash": 165.0,
+  "total_equity": 165.0,
+  "uncleared_funds": 0
+}}

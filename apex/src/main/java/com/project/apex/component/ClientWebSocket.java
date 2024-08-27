@@ -1,7 +1,17 @@
-package com.project.apex.websocket;
+package com.project.apex.component;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.project.apex.data.Balance;
+import com.project.apex.service.AccountService;
+import com.project.apex.service.OrdersService;
+import com.project.apex.service.TradeService;
+import com.project.apex.util.Convert;
+import com.project.apex.util.Record;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -15,29 +25,34 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @Component
 public class ClientWebSocket extends TextWebSocketHandler {
+
     private static final Logger logger = LoggerFactory.getLogger(ClientWebSocket.class);
+    private final AccountService accountService;
+    private final TradeService tradeService;
+    private final AccountState accountState;
+    private final OrdersService ordersService;
 
     // A thread-safe list to store all active WebSocket sessions
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
-    @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        // Add the session to the list of active sessions
-        sessions.add(session);
-        logger.info("WebSocket connection established: " + session.getId());
+    @Autowired
+    public ClientWebSocket(@Lazy AccountService accountService,
+                           @Lazy TradeService tradeService,
+                           AccountState accountState,
+                           @Lazy OrdersService ordersService) {
+        this.accountService = accountService;
+        this.tradeService = tradeService;
+        this.accountState = accountState;
+        this.ordersService = ordersService;
     }
 
     @Override
-    protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        String payload = message.getPayload();
-
-        HttpHeaders headers = session.getHandshakeHeaders();
-        System.out.println("Handshake received: " + headers.toString());
-
-        System.out.println("Received: " + payload);
-
-        // Echo the received message back to the client
-        session.sendMessage(new TextMessage("Echo: " + payload));
+    public void afterConnectionEstablished(@NotNull WebSocketSession session) throws IOException {
+        logger.info("WebSocket connection established: " + session.getId());
+        sessions.add(session);
+        sendData(new Record<>("balance", accountService.getBalanceData()));
+        ordersService.fetchOrders();
+//        ordersService.startOrderFetching();
     }
 
     @Override
@@ -55,6 +70,12 @@ public class ClientWebSocket extends TextWebSocketHandler {
         // Remove the session from the list of active sessions
         sessions.remove(session);
         logger.info("WebSocket connection closed: " + session.getId() + " with status " + status);
+
+//        ordersService.stopOrderFetching();
+    }
+
+    public void sendData(Object object) throws IOException {
+        sendMessageToAll(Convert.objectToString(object));
     }
 
     public void sendMessageToAll(String message) throws IOException {
@@ -64,7 +85,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         for (WebSocketSession session : sessions) {
             if (session.isOpen()) {
                 session.sendMessage(new TextMessage(message));
-                logger.info("Message sent to session: " + session.getId());
+//                logger.info("Message sent to session: " + session.getId());
             } else {
                 logger.warn("Session is not open: " + session.getId());
             }

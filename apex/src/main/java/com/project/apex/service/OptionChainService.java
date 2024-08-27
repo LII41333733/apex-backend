@@ -2,9 +2,9 @@
 //
 //import com.fasterxml.jackson.databind.JsonNode;
 //import com.fasterxml.jackson.databind.ObjectMapper;
-//import com.project.apex.config.InitConfig;
-//import com.project.apex.model.OptionChainBean;
-//import com.project.apex.websocket.MarketStream;
+//import com.project.apex.config.EnvConfig;
+//import com.project.apex.data.OptionChainBean;
+//import com.project.apex.component.MarketStream;
 //import org.apache.http.HttpResponse;
 //import org.apache.http.client.methods.HttpUriRequest;
 //import org.apache.http.client.methods.RequestBuilder;
@@ -29,12 +29,12 @@
 //
 //    private static final Logger logger = LogManager.getLogger(OptionChainService.class);
 //
-//    private final InitConfig initConfig;
+//    private final EnvConfig initConfig;
 //
 //    private final MarketService marketService;
 //
 //    @Autowired
-//    public OptionChainService(InitConfig initConfig, MarketService marketService) {
+//    public OptionChainService(EnvConfig initConfig, MarketService marketService) {
 //        this.initConfig = initConfig;
 //        this.marketService = marketService;
 //    }

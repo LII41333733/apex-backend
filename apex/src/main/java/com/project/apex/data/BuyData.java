@@ -1,4 +1,4 @@
-package com.project.apex.model;
+package com.project.apex.data;
 
 public class BuyData {
 

@@ -1,10 +1,9 @@
 package com.project.apex.controller;
 
-import com.project.apex.model.AccountBalance;
-import com.project.apex.model.Balance;
+import com.project.apex.data.AccountBalance;
+import com.project.apex.data.Balance;
 //import com.project.apex.service.TradierService;
 import com.project.apex.service.AccountService;
-import com.project.apex.utils.ApiResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,29 +24,27 @@ public class AccountController {
     private final AccountService accountService;
 
     @Autowired
-    public AccountController( AccountService accountService) {
+    public AccountController(AccountService accountService) {
         Assert.notNull(accountService, "accountService must not be null");
         this.accountService = accountService;
     }
 
     @GetMapping("/getBalance")
-    public ResponseEntity<ApiResponse<Balance>> getBalance() throws IOException {
-        Balance balance = accountService.getBalance();
-        logger.debug(balance);
-        ApiResponse<Balance> response = new ApiResponse<>("Balance data retrieved successfully", HttpStatus.OK.value(), balance);
-        return new ResponseEntity<>(response, HttpStatus.OK);
+    public ResponseEntity<Balance> getBalance() throws IOException {
+        Balance balance = accountService.getBalanceData();
+        logger.info(balance);
+        return new ResponseEntity<>(balance, HttpStatus.OK);
     }
 
     @PostMapping("/addNewAccountBalance")
-    public ResponseEntity<ApiResponse<AccountBalance>> addNewAccountBalance(@RequestBody AccountBalance accountBalance) throws IOException {
+    public ResponseEntity<HttpStatus> addNewAccountBalance(@RequestBody AccountBalance accountBalance) throws IOException {
         try {
             accountService.addNewAccountBalance(accountBalance);
         } catch (Exception e) {
             logger.error(e);
         }
 
-        ApiResponse<AccountBalance> response = new ApiResponse<>("Balance data saved successfully", HttpStatus.OK.value());
-        return new ResponseEntity<>(response, HttpStatus.OK);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 }
 
