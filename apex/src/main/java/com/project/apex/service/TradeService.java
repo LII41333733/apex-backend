@@ -7,6 +7,8 @@ import com.project.apex.data.Balance;
 import com.project.apex.data.QuoteData;
 import com.project.apex.data.BuyData;
 import com.project.apex.data.SandboxTradeRequest;
+import com.project.apex.model.Trade;
+import com.project.apex.repository.TradeRepository;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,48 +28,65 @@ public class TradeService {
     protected final EnvConfig envConfig;
     private final MarketService marketService;
     private final AccountService accountService;
+    private final TradeRepository tradeRepository;
 
     @Autowired
-    public TradeService(EnvConfig envConfig, MarketService marketService, AccountService accountService) {
+    public TradeService(EnvConfig envConfig,
+                        MarketService marketService,
+                        AccountService accountService,
+                        TradeRepository tradeRepository) {
         this.envConfig = envConfig;
         this.marketService = marketService;
         this.accountService = accountService;
+        this.tradeRepository = tradeRepository;
     }
 
-    public void placeTrade(BuyData buyData) {
-        System.out.println(buyData.toString());
-    }
-
-    public String placeSandboxTrade(SandboxTradeRequest sandboxTradeRequest) throws URISyntaxException {
+    public String placeTrade(BuyData buyData) throws URISyntaxException {
         try {
-            List<QuoteData> optionsChain = marketService.getOptionsChain(sandboxTradeRequest.getSymbol(), sandboxTradeRequest.getOptionType());
-            BigDecimal ask = optionsChain.get(0).getAsk();
-            String symbol = optionsChain.get(0).getSymbol();
+            Optional<Trade> lastLossTradeEntity = tradeRepository.findLastLossTradeWithoutLossId();
+            Trade lastLossTrade = lastLossTradeEntity.orElse(null);
+
+            BigDecimal lastLossPl = BigDecimal.valueOf(0);
+
+            if (lastLossTradeEntity.isPresent()) {
+                lastLossPl = lastLossTrade.getPl();
+            }
+
+            BigDecimal ask = buyData.getPrice().setScale(2, RoundingMode.UP);
             Balance balance = accountService.getBalanceData();
-            BigDecimal totalEquity = balance.getTotalEquity().setScale(0, RoundingMode.UP);
-            BigDecimal totalCash = balance.getTotalCash().setScale(0, RoundingMode.UP);
+            BigDecimal totalEquity = balance.getTotalEquity().setScale(2, RoundingMode.UP);
+            BigDecimal totalCash = balance.getTotalCash().setScale(2, RoundingMode.UP);
             double tradePercentModifier = 0.03;
             BigDecimal tradeAmount = totalEquity.multiply(BigDecimal.valueOf(tradePercentModifier)).setScale(0, RoundingMode.UP);
+            BigDecimal tradeAmountWithLosses = tradeAmount.add(lastLossPl).setScale(0, RoundingMode.UP);
 
-            if (tradeAmount.compareTo(totalCash) < 0) {
-                BigDecimal contractsAmount = tradeAmount.divide(ask.multiply(new BigDecimal(100)), 0, RoundingMode.CEILING);
+            if (tradeAmountWithLosses.compareTo(totalCash) < 0) {
+                Map<String, String> parameters = new HashMap<>();
+                BigDecimal contractCost = ask.multiply(BigDecimal.valueOf(100));
+                BigDecimal contractsAmount = tradeAmountWithLosses.divide(contractCost, 0, RoundingMode.UP);
                 BigDecimal stopPrice = ask.divide(BigDecimal.valueOf(2), 2, RoundingMode.UP);
-                BigDecimal targetPrice = ask.multiply(BigDecimal.valueOf(2).setScale(0, RoundingMode.UP));
+                BigDecimal targetPrice = ask.multiply(BigDecimal.valueOf(2));
+                BigDecimal tradeAmountAfterContracts = contractsAmount.multiply(contractCost);
 
                 System.out.println("TRADE DETAILS ------------------------");
-                System.out.println("Symbol: " + symbol);
+                System.out.println("Symbol: " + buyData.getOption());
                 System.out.println("Ask: " + ask);
                 System.out.println("Total equity: " + totalEquity);
                 System.out.println("Total cash: " + totalCash);
+                System.out.println("Recovering Losses: " + lastLossPl);
                 System.out.println("Trade amount: " + tradeAmount);
+                System.out.println("Trade amount with losses: " + tradeAmountWithLosses);
+                System.out.println("Trade amount after contracts: " + tradeAmountAfterContracts);
                 System.out.println("Contracts amount: " + contractsAmount);
                 System.out.println("Stop Price: " + stopPrice);
                 System.out.println("Target Price: " + targetPrice);
                 System.out.println("---------------------------------------");
 
-                Map<String, String> parameters = new HashMap<>();
+
                 parameters.put("class", "otoco");
-                parameters.put("duration", "day");
+                parameters.put("duration[0]", "day");
+                parameters.put("duration[1]", "gtc");
+                parameters.put("duration[2]", "gtc");
 
                 parameters.put("quantity[0]", String.valueOf(contractsAmount));
                 parameters.put("quantity[1]", String.valueOf(contractsAmount));
@@ -77,9 +96,9 @@ public class TradeService {
                 parameters.put("side[1]", "sell_to_close");
                 parameters.put("side[2]", "sell_to_close");
 
-                parameters.put("option_symbol[0]", "SPY240826C00562000");
-                parameters.put("option_symbol[1]", "SPY240826C00562000");
-                parameters.put("option_symbol[2]", "SPY240826C00562000");
+                parameters.put("option_symbol[0]", buyData.getOption());
+                parameters.put("option_symbol[1]", buyData.getOption());
+                parameters.put("option_symbol[2]", buyData.getOption());
 
                 parameters.put("price[0]", String.valueOf(ask));
                 parameters.put("price[1]", String.valueOf(targetPrice));
@@ -90,50 +109,46 @@ public class TradeService {
                 parameters.put("type[1]", "limit");
                 parameters.put("type[2]", "stop");
 
-                // {"order":{"id":13832634,"status":"ok","partner_id":"3a8bbee1-5184-4ffe-8a0c-294fbad1aee9"}}
                 String response = accountService.post("/orders", parameters);
                 ObjectMapper objectMapper = new ObjectMapper();
                 JsonNode jsonNode = objectMapper.readTree(response).get("order");
-                System.out.println(jsonNode);
 
-                String status = jsonNode.get("status").asText();
-                String partnerId = jsonNode.get("partner_id").asText();
-                String orderId = jsonNode.get("id").asText();
+                if (jsonNode == null) {
+                    logger.error(response);
+                    return response;
+                } else {
+                    logger.info("Order response: " + jsonNode);
+                    String status = jsonNode.get("status").asText();
+                    Integer id = jsonNode.get("id").asInt();
 
-                if (status.equals("ok")) {
-                    // Start interval loop to see when filled
+                    if (status.equals("ok")) {
+                        Trade newTrade = new Trade();
+                        newTrade.setOrderId(id);
+                        newTrade.setTradeAmount(tradeAmountAfterContracts);
+                        newTrade.setBalance(totalEquity);
 
-                    Timer timer = new Timer();
-                    timer.schedule(new TimerTask() {
-                        @Override
-                        public void run() {
-                            try {
-                                String response = accountService.getOrder(orderId);
-                                System.out.println(response);
-
-                                if (new ObjectMapper().readTree(response).get("status").asText().equals("pending")) {
-//                                    timer.cancel();
-                                }
-                            } catch (Exception e) {
-                                throw new RuntimeException(e);
-                            }
-
-//                            timer.cancel();
+                        if (lastLossTradeEntity.isPresent()) {
+                            lastLossTrade.setLossId(id);
+                            newTrade.setRecoveryId(lastLossTrade.getOrderId());
+                            tradeRepository.save(lastLossTrade);
                         }
-                    }, 0, 5000); // Runs every 5 seconds
 
-
-//                    String res = accountService.getOrders();
-//                    System.out.println(res);
+                        tradeRepository.save(newTrade);
+                        return "Order returned ok";
+                    } else {
+                        return "Order returned not ok";
+                    }
                 }
-
-                return jsonNode.toString();
-//                accountService.post("/orders", objectMapper.writeValueAsString(parameters));
             } else {
                 logger.warn("Not enough cash available to make trade");
                 return "Not enough cash available to make trade";
             }
         } catch (IOException e) {
+            System.out.println(e.getMessage());
+            logger.error(e);
+            return e.getMessage();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
             logger.error(e);
             return e.getMessage();
         }

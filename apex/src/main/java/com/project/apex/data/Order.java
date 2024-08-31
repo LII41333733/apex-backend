@@ -1,18 +1,22 @@
 package com.project.apex.data;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
 
 public class Order {
     @JsonProperty("class")
     private String className;
-    @JsonProperty("create_date")
+    @JsonProperty("createDate")
+    @JsonAlias("create_date")
     private String createDate;
-    private long id;
+    private Integer id;
     private List<Leg> leg;
-    @JsonProperty("reason_description")
+    @JsonAlias("reason_description")
+    @JsonProperty("reasonDescription")
     private String reasonDescription;
     private String status;
-    @JsonProperty("transaction_date")
+    @JsonAlias("transaction_date")
+    @JsonProperty("transactionDate")
     private String transactionDate;
 
     // Getters and Setters
@@ -32,11 +36,11 @@ public class Order {
         this.createDate = createDate;
     }
 
-    public long getId() {
+    public Integer getId() {
         return id;
     }
 
-    public void setId(long id) {
+    public void setId(Integer id) {
         this.id = id;
     }
 

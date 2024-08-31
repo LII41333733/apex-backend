@@ -1,45 +1,58 @@
 package com.project.apex.data;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.math.BigDecimal;
+
 public class Leg {
-    @JsonProperty("avg_fill_price")
-    private double avgFillPrice;
+    @JsonAlias("avg_fill_price")
+    @JsonProperty("avgFillPrice")
+    private BigDecimal avgFillPrice;
     @JsonProperty("class")
     private String className;
-    @JsonProperty("create_date")
+    @JsonAlias("create_date")
+    @JsonProperty("createDate")
     private String createDate;
     private String duration;
-    @JsonProperty("exec_quantity")
-    private double execQuantity;
+    @JsonAlias("exec_quantity")
+    @JsonProperty("execQuantity")
+    private BigDecimal execQuantity;
     private long id;
-    @JsonProperty("last_fill_price")
-    private double lastFillPrice;
-    @JsonProperty("last_fill_quantity")
-    private double lastFillQuantity;
-    @JsonProperty("option_symbol")
+    @JsonAlias("last_fill_price")
+    @JsonProperty("lastFillPrice")
+    private BigDecimal lastFillPrice;
+    @JsonAlias("last_fill_quantity")
+    @JsonProperty("lastFillQuantity")
+    private BigDecimal lastFillQuantity;
+    @JsonAlias("option_symbol")
+    @JsonProperty("optionSymbol")
     private String optionSymbol;
-    private double price;
-    private double quantity;
-    @JsonProperty("reason_description")
+    private BigDecimal price;
+    private Integer quantity;
+    @JsonAlias("reason_description")
+    @JsonProperty("reasonDescription")
     private String reasonDescription;
-    @JsonProperty("remaining_quantity")
-    private double remainingQuantity;
+    @JsonAlias("remaining_quantity")
+    @JsonProperty("remainingQuantity")
+    private BigDecimal remainingQuantity;
     private String side;
     private String status;
     private String symbol;
-    @JsonProperty("transaction_date")
+    @JsonAlias("transaction_date")
+    @JsonProperty("transactionDate")
     private String transactionDate;
     private String type;
-    @JsonProperty("stop_price")
-    private Double stopPrice;  // Nullable for types that don't include it
+    @JsonAlias("stop_price")
+    @JsonProperty("stopPrice")
+    private BigDecimal stopPrice;
 
     // Getters and Setters
-    public double getAvgFillPrice() {
+    public BigDecimal getAvgFillPrice() {
         return avgFillPrice;
     }
 
-    public void setAvgFillPrice(double avgFillPrice) {
+    public void setAvgFillPrice(BigDecimal avgFillPrice) {
         this.avgFillPrice = avgFillPrice;
     }
 
@@ -67,11 +80,11 @@ public class Leg {
         this.duration = duration;
     }
 
-    public double getExecQuantity() {
+    public BigDecimal getExecQuantity() {
         return execQuantity;
     }
 
-    public void setExecQuantity(double execQuantity) {
+    public void setExecQuantity(BigDecimal execQuantity) {
         this.execQuantity = execQuantity;
     }
 
@@ -83,19 +96,19 @@ public class Leg {
         this.id = id;
     }
 
-    public double getLastFillPrice() {
+    public BigDecimal getLastFillPrice() {
         return lastFillPrice;
     }
 
-    public void setLastFillPrice(double lastFillPrice) {
+    public void setLastFillPrice(BigDecimal lastFillPrice) {
         this.lastFillPrice = lastFillPrice;
     }
 
-    public double getLastFillQuantity() {
+    public BigDecimal getLastFillQuantity() {
         return lastFillQuantity;
     }
 
-    public void setLastFillQuantity(double lastFillQuantity) {
+    public void setLastFillQuantity(BigDecimal lastFillQuantity) {
         this.lastFillQuantity = lastFillQuantity;
     }
 
@@ -107,19 +120,19 @@ public class Leg {
         this.optionSymbol = optionSymbol;
     }
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 
-    public double getQuantity() {
+    public Integer getQuantity() {
         return quantity;
     }
 
-    public void setQuantity(double quantity) {
+    public void setQuantity(Integer quantity) {
         this.quantity = quantity;
     }
 
@@ -131,11 +144,11 @@ public class Leg {
         this.reasonDescription = reasonDescription;
     }
 
-    public double getRemainingQuantity() {
+    public BigDecimal getRemainingQuantity() {
         return remainingQuantity;
     }
 
-    public void setRemainingQuantity(double remainingQuantity) {
+    public void setRemainingQuantity(BigDecimal remainingQuantity) {
         this.remainingQuantity = remainingQuantity;
     }
 
@@ -179,11 +192,11 @@ public class Leg {
         this.type = type;
     }
 
-    public Double getStopPrice() {
+    public BigDecimal getStopPrice() {
         return stopPrice;
     }
 
-    public void setStopPrice(Double stopPrice) {
+    public void setStopPrice(BigDecimal stopPrice) {
         this.stopPrice = stopPrice;
     }
 }

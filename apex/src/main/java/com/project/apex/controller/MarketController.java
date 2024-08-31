@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -33,27 +33,39 @@ public class MarketController {
     }
 
     @GetMapping("/getOptionsChain")
-    public ResponseEntity<?> getOptionsChain(String symbol, String optionType) {
+    public ResponseEntity<?> getOptionsChain(@RequestParam String symbol, @RequestParam String optionType) {
         try {
+            // Retrieve the options chain data
             List<QuoteData> list = marketService.getOptionsChain(symbol, optionType);
 
+            // If data is available, handle the WebSocket communication
             if (!list.isEmpty()) {
-                MarketStream response = marketStream.createAndConnectNewWebSocketClient();
+                if (!marketStream.isConnected()) {
+                    // Reconnect if the connection is not active
+                    marketStream.reconnect();
+                } else {
+                    marketStream.stopAllStreams();
+                    marketStream.reconnect();
+                    String message = marketService.buildOptionsStreamCall();
+                    marketStream.sendMessage(message);
 
-                if (response == null) {
-                    return new ResponseEntity<>("Error connecting to the Market Stream", HttpStatus.INTERNAL_SERVER_ERROR);
                 }
-            }
+
+                         }
 
             return new ResponseEntity<>(list, HttpStatus.OK);
+
         } catch (NoSuchElementException e) {
-            var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
-            logger.warn(err);
-           return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
+            String err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
+            return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
+
+        } catch (URISyntaxException e) {
+            String err = "WebSocket URI Error";
+            return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+
         } catch (Exception e) {
-            var err = "Error retrieving options template";
-            logger.error(err);
-           return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
+            String err = "Error retrieving options template";
+            return new ResponseEntity<>(err, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 }

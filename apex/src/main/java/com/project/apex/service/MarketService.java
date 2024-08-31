@@ -7,6 +7,8 @@ import com.project.apex.config.EnvConfig;
 import com.project.apex.data.QuoteData;
 import com.project.apex.component.ApiRequest;
 import com.project.apex.component.ClientWebSocket;
+import com.project.apex.util.Convert;
+import com.project.apex.util.Record;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.entity.StringEntity;
@@ -39,7 +41,6 @@ public class MarketService {
     private final EnvConfig envConfig;
     private final ClientWebSocket clientWebSocket;
     ObjectMapper objectMapper = new ObjectMapper();
-    private String optionTypeState;
 
     @Autowired
     public MarketService(EnvConfig envConfig, ClientWebSocket clientWebSocket) {
@@ -54,7 +55,8 @@ public class MarketService {
     public List<QuoteData> getOptionsChain(String symbol, String optionType) throws IOException, URISyntaxException {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbol", symbol);
-        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
+//        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
+        queryParams.put("expiration", getNextExpiration(false));
         String response = ApiRequest.get(getBaseApi() + "/options/chains", queryParams);
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode optionsNode = objectMapper.readTree(response).path("options");
@@ -146,9 +148,9 @@ public class MarketService {
             quoteData.setSymbol(quote.get("symbol").asText());
             quoteData.setBid(new BigDecimal(quote.get("bid").asText()));
             quoteData.setAsk(new BigDecimal(quote.get("ask").asText()));
-            quoteData.setOptionType(optionTypeState);
             optionsMap.put(quoteData.getSymbol(), quoteData);
-            clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quoteData));
+            Record<QuoteData> quoteRecord = new Record<>("quote", quoteData);
+            clientWebSocket.sendMessageToAll(Convert.objectToString(quoteRecord));
         } catch (Exception e) {
             System.err.println("Failed to parse message: " + e.getMessage());
         }
@@ -202,6 +204,5 @@ public class MarketService {
                 }
             }
         }, 0, 2000); // Runs every 5 seconds
-
     }
 }

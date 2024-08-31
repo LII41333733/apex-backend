@@ -20,7 +20,6 @@ import org.apache.logging.log4j.Logger;
 public class AccountController {
 
     private static final Logger logger = LogManager.getLogger(AccountController.class);
-
     private final AccountService accountService;
 
     @Autowired
@@ -30,10 +29,16 @@ public class AccountController {
     }
 
     @GetMapping("/getBalance")
-    public ResponseEntity<Balance> getBalance() throws IOException {
-        Balance balance = accountService.getBalanceData();
-        logger.info(balance);
-        return new ResponseEntity<>(balance, HttpStatus.OK);
+    public ResponseEntity<?> getBalance() throws IOException {
+        logger.info("/getBalance");
+
+        try {
+            Balance balance = accountService.getBalanceData();
+            return new ResponseEntity<>(balance, HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error(e);
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     @PostMapping("/addNewAccountBalance")

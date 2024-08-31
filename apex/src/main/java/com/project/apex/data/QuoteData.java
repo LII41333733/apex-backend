@@ -25,6 +25,10 @@ public class QuoteData {
     @JsonProperty("optionType")
     private String optionType;
 
+    @JsonAlias("expiration_date")
+    @JsonProperty("expirationDate")
+    private String expirationDate;
+
     public String getSymbol() {
         return symbol;
     }
@@ -63,6 +67,14 @@ public class QuoteData {
 
     public void setOptionType(String optionType) {
         this.optionType = optionType;
+    }
+
+    public String getExpirationDate() {
+        return expirationDate;
+    }
+
+    public void setExpirationDate(String expirationDate) {
+        this.expirationDate = expirationDate;
     }
 
     @Override

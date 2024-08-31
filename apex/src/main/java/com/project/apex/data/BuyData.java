@@ -1,16 +1,18 @@
 package com.project.apex.data;
 
+import java.math.BigDecimal;
+
 public class BuyData {
 
-    double price;
+    BigDecimal price;
 
     String option;
 
-    public double getPrice() {
+    public BigDecimal getPrice() {
         return price;
     }
 
-    public void setPrice(double price) {
+    public void setPrice(BigDecimal price) {
         this.price = price;
     }
 

@@ -1,5 +1,6 @@
 package com.project.apex.controller;
 
+import com.project.apex.component.MarketStream;
 import com.project.apex.data.BuyData;
 import com.project.apex.data.SandboxTradeRequest;
 import com.project.apex.service.AccountService;
@@ -22,35 +23,39 @@ public class TradeController {
     private static final Logger logger = LogManager.getLogger(TradeController.class);
     private final TradeService tradeService;
     private final AccountService accountService;
+    private final MarketStream marketStream;
 
     @Autowired
-    public TradeController(TradeService tradeService, AccountService accountService) {
+    public TradeController(TradeService tradeService, AccountService accountService, MarketStream marketStream) {
         this.tradeService = tradeService;
         this.accountService = accountService;
+        this.marketStream = marketStream;
     }
 
-    @PostMapping("/placeSandboxTrade")
-    public ResponseEntity<?> placeSandboxTrade(@RequestBody SandboxTradeRequest sandboxTradeRequest) throws IOException {
-        try {
-            String response = tradeService.placeSandboxTrade(sandboxTradeRequest);
-            return new ResponseEntity<>(response, HttpStatus.OK);
-        } catch (NoSuchElementException e) {
-            var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
-            logger.warn(err);
-            return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
-        } catch (Exception e) {
-            logger.error(e);
-            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-    }
+//    @PostMapping("/placeSandboxTrade")
+//    public ResponseEntity<?> placeSandboxTrade(@RequestBody SandboxTradeRequest sandboxTradeRequest) throws IOException {
+//        try {
+//            String response = tradeService.placeSandboxTrade(sandboxTradeRequest);
+//            return new ResponseEntity<>(response, HttpStatus.OK);
+//        } catch (NoSuchElementException e) {
+//            var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
+//            logger.warn(err);
+//            return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
+//        } catch (Exception e) {
+//            logger.error(e);
+//            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
+//        }
+//    }
 
     @PostMapping("/placeTrade")
     public ResponseEntity<?> placeTrade(@RequestBody BuyData buyData) throws IOException {
         System.out.println(buyData.toString());
 
         try {
-            tradeService.placeTrade(buyData);
-            return new ResponseEntity<>(HttpStatus.OK);
+            String response = tradeService.placeTrade(buyData);
+            marketStream.stopAllStreams();
+
+            return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
             logger.error(e);
             return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
