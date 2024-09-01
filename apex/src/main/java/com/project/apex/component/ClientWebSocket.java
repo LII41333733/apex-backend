@@ -29,7 +29,6 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private static final Logger logger = LoggerFactory.getLogger(ClientWebSocket.class);
     private final AccountService accountService;
     private final TradeService tradeService;
-    private final AccountState accountState;
     private final OrdersService ordersService;
     private final MarketStream marketStream;
 
@@ -42,11 +41,9 @@ public class ClientWebSocket extends TextWebSocketHandler {
     public ClientWebSocket(@Lazy AccountService accountService,
                            @Lazy TradeService tradeService,
                            @Lazy MarketStream marketStream,
-                           AccountState accountState,
                            @Lazy OrdersService ordersService) {
         this.accountService = accountService;
         this.tradeService = tradeService;
-        this.accountState = accountState;
         this.ordersService = ordersService;
         this.marketStream = marketStream;
     }
@@ -57,6 +54,8 @@ public class ClientWebSocket extends TextWebSocketHandler {
         isConnected = true;
         sessions.add(session);
         sendData(new Record<>("balance", accountService.getBalanceData()));
+        sendData(new Record<>("trades", tradeService.fetchTrades()));
+        tradeService.fetchTrades();
         ordersService.fetchOrders();
     }
 

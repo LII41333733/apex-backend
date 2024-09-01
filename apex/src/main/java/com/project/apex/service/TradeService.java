@@ -41,6 +41,11 @@ public class TradeService {
         this.tradeRepository = tradeRepository;
     }
 
+    public List<Trade> fetchTrades() {        List<Trade> trades =  tradeRepository.findAll();
+        System.out.println(trades);
+        return trades;
+    }
+
     public String placeTrade(BuyData buyData) throws URISyntaxException {
         try {
             Optional<Trade> lastLossTradeEntity = tradeRepository.findLastLossTradeWithoutLossId();

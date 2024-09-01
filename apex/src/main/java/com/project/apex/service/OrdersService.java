@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -112,8 +112,8 @@ public class OrdersService {
         trade.setStopPrice(stopLeg.getStopPrice());
         trade.setLimitPrice(limitLeg.getPrice());
         trade.setFillPrice(triggerLeg.getPrice());
-        trade.setOpenDate(Instant.parse(order.getCreateDate()));
-        trade.setCloseDate(Instant.parse(order.getTransactionDate()));
+        trade.setOpenDate(LocalDateTime.parse(order.getCreateDate()));
+        trade.setCloseDate(LocalDateTime.parse(order.getTransactionDate()));
         trade.setQuantity(triggerLeg.getQuantity());
     }
 

@@ -2,7 +2,7 @@ package com.project.apex.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "trade")
@@ -40,10 +40,10 @@ public class Trade {
     private BigDecimal fillPrice;
 
     @Column(name = "open_date")
-    private Instant openDate;
+    private LocalDateTime openDate;
 
     @Column(name = "close_date")
-    private Instant closeDate;
+    private LocalDateTime closeDate;
 
     @Column(name = "trade_result", length = 1)
     private String tradeResult;
@@ -145,19 +145,19 @@ public class Trade {
         this.fillPrice = fillPrice;
     }
 
-    public Instant getOpenDate() {
+    public LocalDateTime getOpenDate() {
         return openDate;
     }
 
-    public void setOpenDate(Instant openDate) {
+    public void setOpenDate(LocalDateTime openDate) {
         this.openDate = openDate;
     }
 
-    public Instant getCloseDate() {
+    public LocalDateTime getCloseDate() {
         return closeDate;
     }
 
-    public void setCloseDate(Instant closeDate) {
+    public void setCloseDate(LocalDateTime closeDate) {
         this.closeDate = closeDate;
     }
 
