@@ -19,7 +19,7 @@ public class OrderSummary {
     private final List<Order> filledOrders = new ArrayList<>();
     private final List<Order> otherOrders = new ArrayList<>();
 
-    public void update(JsonNode ordersNode) throws JsonProcessingException {
+    public void mapOrderToSummary(JsonNode ordersNode) throws JsonProcessingException {
         if (ordersNode.isArray()) {
             for (JsonNode orderNode : ordersNode) {
                 assignMap(orderNode);

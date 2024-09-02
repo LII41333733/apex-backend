@@ -10,6 +10,7 @@ import com.project.apex.data.Balance;
 import com.project.apex.data.Order;
 import com.project.apex.repository.AccountBalanceRepository;
 import com.project.apex.component.ClientWebSocket;
+import jakarta.annotation.PostConstruct;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -20,6 +21,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.scheduling.annotation.Scheduled;
+
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -35,21 +38,21 @@ public class AccountService {
     private final EnvConfig envConfig;
     private final AccountBalanceRepository accountBalanceRepository;
     private final AccountState accountState;
-//    private final AccountStream accountStream;
+    private final MarketService marketService;
 
     @Autowired
     public AccountService (
-            @Lazy ClientWebSocket clientWebSocket,
+            ClientWebSocket clientWebSocket,
             EnvConfig envConfig,
             AccountBalanceRepository accountBalanceRepoitory,
-            AccountState accountState
-//            AccountStream accountStream
+            AccountState accountState,
+            MarketService marketService
     ) {
         this.clientWebSocket = clientWebSocket;
         this.envConfig = envConfig;
         this.accountBalanceRepository = accountBalanceRepoitory;
         this.accountState = accountState;
-//        this.accountStream = accountStream;
+        this.marketService = marketService;
     }
 
     public void init() throws IOException {
@@ -97,16 +100,17 @@ public class AccountService {
         JsonNode balances = new ObjectMapper().readTree(get("/balances")).get("balances");
 
         if (envConfig.isSandbox()) {
-            BigDecimal totalCash = new BigDecimal(balances.get("total_cash").asText()).setScale(2, RoundingMode.HALF_UP);
-            balance.setTotalEquity(new BigDecimal(balances.get("total_equity").asText()).setScale(2, RoundingMode.HALF_UP));
-            balance.setTotalCash(totalCash);
-            balance.setCashAvailable(totalCash);
+            BigDecimal totalCash = new BigDecimal(balances.get("total_cash").asText()).setScale(0, RoundingMode.HALF_UP);
             balance.setUnsettledFunds(new BigDecimal(0));
+            balance.setCashAvailable(totalCash);
+            balance.setTotalCash(totalCash);
         } else {
             balance.setUnsettledFunds(new BigDecimal(balances.get("cash").get("unsettled_funds").asText()).setScale(2, RoundingMode.HALF_UP));
             balance.setCashAvailable(new BigDecimal(balances.get("cash").get("cash_available").asText()).setScale(2, RoundingMode.HALF_UP));
+            balance.setTotalCash(balance.getCashAvailable());
         }
 
+        balance.setTotalEquity(new BigDecimal(balances.get("total_equity").asText()).setScale(0, RoundingMode.HALF_UP));
         balance.setMarketValue(new BigDecimal(balances.get("market_value").asText()).setScale(2, RoundingMode.HALF_UP));
         balance.setOpenPl(new BigDecimal(balances.get("open_pl").asText()).setScale(2, RoundingMode.HALF_UP));
         balance.setClosePl(new BigDecimal(balances.get("close_pl").asText()).setScale(2, RoundingMode.HALF_UP));
@@ -141,13 +145,16 @@ public class AccountService {
         return orders.toString();
     }
 
-
-
-
-
     public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
         accountBalanceRepository.save(accountBalance);
     }
+
+//    @Scheduled(fixedRate = 10000)
+//    public void fetchOrdersSchedule() {
+//        if (!clientWebSocket.isConnected() && !ordersAreEmpty) {
+//            fetchOrders();
+//        }
+//    }
 
 //    public void sendBalance() throws IOException {
 //        final JsonNode json = AccountService.getBalance();

@@ -4,6 +4,7 @@ import com.project.apex.component.MarketStream;
 import com.project.apex.data.BuyData;
 import com.project.apex.data.SandboxTradeRequest;
 import com.project.apex.service.AccountService;
+import com.project.apex.service.OrdersService;
 import com.project.apex.service.TradeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,33 +25,32 @@ public class TradeController {
     private final TradeService tradeService;
     private final AccountService accountService;
     private final MarketStream marketStream;
+    private final OrdersService ordersService;
 
     @Autowired
-    public TradeController(TradeService tradeService, AccountService accountService, MarketStream marketStream) {
+    public TradeController(TradeService tradeService, AccountService accountService, MarketStream marketStream, OrdersService ordersService) {
         this.tradeService = tradeService;
         this.accountService = accountService;
         this.marketStream = marketStream;
+        this.ordersService = ordersService;
     }
 
-//    @PostMapping("/placeSandboxTrade")
-//    public ResponseEntity<?> placeSandboxTrade(@RequestBody SandboxTradeRequest sandboxTradeRequest) throws IOException {
-//        try {
-//            String response = tradeService.placeSandboxTrade(sandboxTradeRequest);
-//            return new ResponseEntity<>(response, HttpStatus.OK);
-//        } catch (NoSuchElementException e) {
-//            var err = "Tradier Options Chain is down. (Market Closed - Data Unavailable)";
-//            logger.warn(err);
-//            return new ResponseEntity<>(err, HttpStatus.SERVICE_UNAVAILABLE);
-//        } catch (Exception e) {
-//            logger.error(e);
-//            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
-//        }
-//    }
+    public record CancelTradeRequest(String orderId) {}
+
+    @PostMapping("/cancelTrade")
+    public ResponseEntity<?> cancelTrade(@RequestBody CancelTradeRequest request) throws IOException {
+        try {
+            tradeService.cancelTrade(request.orderId());
+            ordersService.fetchOrders();
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error(e);
+            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     @PostMapping("/placeTrade")
     public ResponseEntity<?> placeTrade(@RequestBody BuyData buyData) throws IOException {
-        System.out.println(buyData.toString());
-
         try {
             String response = tradeService.placeTrade(buyData);
             marketStream.stopAllStreams();

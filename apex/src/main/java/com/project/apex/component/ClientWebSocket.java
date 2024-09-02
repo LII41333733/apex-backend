@@ -3,6 +3,7 @@ package com.project.apex.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.data.Balance;
 import com.project.apex.service.AccountService;
+import com.project.apex.service.MarketService;
 import com.project.apex.service.OrdersService;
 import com.project.apex.service.TradeService;
 import com.project.apex.util.Convert;
@@ -31,6 +32,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private final TradeService tradeService;
     private final OrdersService ordersService;
     private final MarketStream marketStream;
+    private final MarketService marketService;
 
     private boolean isConnected = false;
 
@@ -41,11 +43,13 @@ public class ClientWebSocket extends TextWebSocketHandler {
     public ClientWebSocket(@Lazy AccountService accountService,
                            @Lazy TradeService tradeService,
                            @Lazy MarketStream marketStream,
-                           @Lazy OrdersService ordersService) {
+                           @Lazy OrdersService ordersService,
+                           @Lazy MarketService marketService) {
         this.accountService = accountService;
         this.tradeService = tradeService;
         this.ordersService = ordersService;
         this.marketStream = marketStream;
+        this.marketService = marketService;
     }
 
     @Override
@@ -55,7 +59,8 @@ public class ClientWebSocket extends TextWebSocketHandler {
         sessions.add(session);
         sendData(new Record<>("balance", accountService.getBalanceData()));
         sendData(new Record<>("trades", tradeService.fetchTrades()));
-        tradeService.fetchTrades();
+//        sendData(new Record<>("marketPrices", marketService.fetchMarketPrices()));
+        marketService.fetchMarketPrices();
         ordersService.fetchOrders();
     }
 
@@ -86,7 +91,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
     }
 
     public void sendMessageToAll(String message) throws IOException {
-        logger.trace("Sending message to all connected clients: " + message);
+        logger.info(message);
 
       try {
           // Iterate over all active sessions and send the message

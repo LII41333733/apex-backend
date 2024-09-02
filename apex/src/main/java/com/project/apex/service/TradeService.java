@@ -9,6 +9,11 @@ import com.project.apex.data.BuyData;
 import com.project.apex.data.SandboxTradeRequest;
 import com.project.apex.model.Trade;
 import com.project.apex.repository.TradeRepository;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,9 +46,25 @@ public class TradeService {
         this.tradeRepository = tradeRepository;
     }
 
-    public List<Trade> fetchTrades() {        List<Trade> trades =  tradeRepository.findAll();
+    public List<Trade> fetchTrades() {
+        List<Trade> trades =  tradeRepository.findAll();
         System.out.println(trades);
         return trades;
+    }
+
+    public void cancelTrade(String orderId) throws IOException {
+        String url = envConfig.getApiEndpoint() + "/v1/accounts/" + envConfig.getClientId() + "/orders/" + orderId;
+        System.out.println(url);
+        System.out.println(url);
+        HttpUriRequest request = RequestBuilder
+                .delete(url)
+                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
+                .addHeader("Accept", "application/json")
+                .build();
+
+        final HttpResponse response = HttpClientBuilder.create().build().execute(request);
+        String responseBody = EntityUtils.toString(response.getEntity());
+        System.out.println(responseBody);
     }
 
     public String placeTrade(BuyData buyData) throws URISyntaxException {

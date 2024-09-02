@@ -1,5 +1,7 @@
 package com.project.apex.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.component.ClientWebSocket;
@@ -18,13 +20,19 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.net.URISyntaxException;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class OrdersService {
@@ -33,40 +41,65 @@ public class OrdersService {
     private final AccountService accountService;
     private final ClientWebSocket clientWebSocket;
     private final TradeRepository tradeRepository;
+    private final MarketService marketService;
     private boolean ordersAreEmpty = false;
 
     @Autowired
     public OrdersService(AccountService accountService,
-                         @Lazy ClientWebSocket clientWebSocket,
-                         TradeRepository tradeRepository) {
+                         ClientWebSocket clientWebSocket,
+                         TradeRepository tradeRepository, MarketService marketService) {
         this.accountService = accountService;
         this.clientWebSocket = clientWebSocket;
         this.tradeRepository = tradeRepository;
+        this.marketService = marketService;
     }
 
     @PostConstruct
     public void fetchOrders() {
-       try {
-           logger.info("Fetching orders");
-           OrderSummary orderSummary = new OrderSummary();
-           JsonNode orders = new ObjectMapper().readTree(accountService.get("/orders")).get("orders").get("order");
+        try {
+            logger.info("Fetching orders");
+            OrderSummary orderSummary = new OrderSummary();
+            JsonNode orders = new ObjectMapper().readTree(accountService.get("/orders")).get("orders").get("order");
 
-           if (orders == null) {
-               logger.info("No orders found");
-               ordersAreEmpty = true;
-           } else {
-               ordersAreEmpty = false;
-               orderSummary.update(orders);
-               syncTradeRepository(orderSummary);
-           }
+            if (orders == null) {
+                logger.info("No orders found");
+                ordersAreEmpty = true;
+            } else {
+                ordersAreEmpty = false;
+                orderSummary.mapOrderToSummary(orders);
+                syncTradeRepository(orderSummary);
+            }
 
-           if (clientWebSocket.isConnected()) {
-               // Need to get price of all open contracts and send a separate record to update UI pl
-               clientWebSocket.sendData(new Record<>("orderSummary", orderSummary));
-           }
-       } catch (Exception e) {
-           logger.error(e.getMessage());
-       }
+            if (clientWebSocket.isConnected()) {
+                List<Order> allOrders = orderSummary.getAllOrders();
+                if (!allOrders.isEmpty()) {
+                    String symbols = allOrders.stream()
+                            .map((Order openOrder) -> {
+                                List<Leg> legs = openOrder.getLeg();
+                                return legs.get(0).getOptionSymbol();
+                            }) // Extract the symbol property
+                            .collect(Collectors.joining(",")); // Join with commas
+
+                    JsonNode quotes = marketService.getPrices(symbols);
+
+                    for (JsonNode node : quotes) {
+                        String symbol = node.get("symbol").asText();
+                        BigDecimal lastValue = BigDecimal.valueOf(node.get("last").asDouble());
+
+                        // Find the matching Order object and set its last value
+                        allOrders.stream()
+                                .filter(order -> order.getLeg().get(0).getOptionSymbol().equals(symbol))
+                                .findFirst()
+                                .ifPresent(order -> order.setLast(lastValue));
+                    }
+                }
+                clientWebSocket.sendData(new Record<>("orderSummary", orderSummary));
+            }
+        } catch (JsonMappingException e) {
+            logger.error(e.getMessage());
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
     }
 
     @Transactional
@@ -96,6 +129,10 @@ public class OrdersService {
 
                     tradeRepository.save(trade);
                 }
+            } else {
+                Trade trade = new Trade();
+                convertOrderToTrade(order, trade);
+                tradeRepository.save(trade);
             }
         }
     }
@@ -112,8 +149,8 @@ public class OrdersService {
         trade.setStopPrice(stopLeg.getStopPrice());
         trade.setLimitPrice(limitLeg.getPrice());
         trade.setFillPrice(triggerLeg.getPrice());
-        trade.setOpenDate(LocalDateTime.parse(order.getCreateDate()));
-        trade.setCloseDate(LocalDateTime.parse(order.getTransactionDate()));
+        trade.setOpenDate(LocalDateTime.ofInstant(Instant.parse(order.getCreateDate()), ZoneId.of("America/New_York")));
+        trade.setCloseDate(LocalDateTime.ofInstant(Instant.parse(order.getTransactionDate()), ZoneId.of("America/New_York")));
         trade.setQuantity(triggerLeg.getQuantity());
     }
 

@@ -1,6 +1,8 @@
 package com.project.apex.data;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.math.BigDecimal;
 import java.util.List;
 
 public class Order {
@@ -18,6 +20,7 @@ public class Order {
     @JsonAlias("transaction_date")
     @JsonProperty("transactionDate")
     private String transactionDate;
+    private BigDecimal last;
 
     // Getters and Setters
     public String getClassName() {
@@ -74,5 +77,13 @@ public class Order {
 
     public void setTransactionDate(String transactionDate) {
         this.transactionDate = transactionDate;
+    }
+
+    public BigDecimal getLast() {
+        return last;
+    }
+
+    public void setLast(BigDecimal last) {
+        this.last = last;
     }
 }

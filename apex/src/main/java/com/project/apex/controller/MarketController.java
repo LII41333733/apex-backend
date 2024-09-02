@@ -32,10 +32,22 @@ public class MarketController {
         this.marketService = marketService;
     }
 
+    @PostMapping("/stopOptionsChain")
+    public ResponseEntity<?> stopOptionsChain() {
+        try {
+            logger.info("Stopping options chain");
+            marketStream.stopAllStreams();
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+            return new ResponseEntity<>(e.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @GetMapping("/getOptionsChain")
     public ResponseEntity<?> getOptionsChain(@RequestParam String symbol, @RequestParam String optionType) {
         try {
-            // Retrieve the options chain data
+            logger.info("Getting options chain for symbol: " + symbol);
             List<QuoteData> list = marketService.getOptionsChain(symbol, optionType);
 
             // If data is available, handle the WebSocket communication
@@ -48,10 +60,8 @@ public class MarketController {
                     marketStream.reconnect();
                     String message = marketService.buildOptionsStreamCall();
                     marketStream.sendMessage(message);
-
                 }
-
-                         }
+            }
 
             return new ResponseEntity<>(list, HttpStatus.OK);
 

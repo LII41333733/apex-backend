@@ -104,6 +104,21 @@ public class MarketService {
         return BigDecimal.valueOf(Double.parseDouble(price));
     }
 
+    public JsonNode getPrices(String symbols) throws IOException, URISyntaxException {
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put("symbols", symbols);
+        String response = ApiRequest.get(getBaseApi() + "/quotes", queryParams);
+        return new ObjectMapper().readTree(response).path("quotes").path("quote");
+    }
+
+    public String getPriceFull(String symbol) throws IOException, URISyntaxException {
+        Map<String, String> queryParams = new HashMap<>();
+        queryParams.put("symbols", symbol);
+        String response = ApiRequest.get(getBaseApi() + "/quotes", queryParams);
+        JsonNode jsonNode = new ObjectMapper().readTree(response).path("quotes").path("quote");
+        return jsonNode.toString();
+    }
+
     private String getNextExpiration(boolean is0Dte) {
         LocalDate currentDate = LocalDate.now();
         LocalDate nextFriday = currentDate.with(TemporalAdjusters.nextOrSame(DayOfWeek.FRIDAY));
@@ -204,5 +219,23 @@ public class MarketService {
                 }
             }
         }, 0, 2000); // Runs every 5 seconds
+    }
+
+    public void fetchMarketPrices() {
+        try {
+            String spyPriceData = getPriceFull("SPY");
+            String qqqPriceData = getPriceFull("QQQ");
+            String iwmPriceData = getPriceFull("IWM");
+
+            System.out.println(spyPriceData);
+            System.out.println(qqqPriceData);
+            System.out.println(iwmPriceData);
+            clientWebSocket.sendData(new Record<>("SPY", spyPriceData));
+            clientWebSocket.sendData(new Record<>("QQQ", qqqPriceData));
+            clientWebSocket.sendData(new Record<>("IWM", iwmPriceData));
+            System.out.println("---");
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
     }
 }
