@@ -1,8 +1,7 @@
 package com.project.apex.controller;
 
 //import com.project.apex.service.TradierService;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.apex.data.QuoteData;
+import com.project.apex.data.market.QuoteData;
 import com.project.apex.service.MarketService;
 import com.project.apex.component.MarketStream;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,15 +51,10 @@ public class MarketController {
 
             // If data is available, handle the WebSocket communication
             if (!list.isEmpty()) {
-                if (!marketStream.isConnected()) {
-                    // Reconnect if the connection is not active
-                    marketStream.reconnect();
-                } else {
-                    marketStream.stopAllStreams();
-                    marketStream.reconnect();
-                    String message = marketService.buildOptionsStreamCall();
-                    marketStream.sendMessage(message);
-                }
+                marketStream.stopAllStreams();
+                marketStream.reconnect();
+//                String message = marketService.buildOptionsStreamCall();
+//                marketStream.sendMessage(message);
             }
 
             return new ResponseEntity<>(list, HttpStatus.OK);

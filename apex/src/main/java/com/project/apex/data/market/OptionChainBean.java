@@ -1,9 +1,7 @@
-package com.project.apex.data;
+package com.project.apex.data.market;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.math.BigDecimal;
 
 @JsonIgnoreProperties(ignoreUnknown = true) // Ignore properties not mapped
 public class OptionChainBean {
@@ -15,13 +13,13 @@ public class OptionChainBean {
     private String optionType;
 
     @JsonProperty("strike")
-    private BigDecimal strike;
+    private Double strike;
 
     @JsonProperty("bid")
-    private BigDecimal bid;
+    private Double bid;
 
     @JsonProperty("ask")
-    private BigDecimal ask;
+    private Double ask;
 
     // Getters and Setters
 
@@ -41,27 +39,27 @@ public class OptionChainBean {
         this.optionType = optionType;
     }
 
-    public BigDecimal getStrike() {
+    public Double getStrike() {
         return strike;
     }
 
-    public void setStrike(BigDecimal strike) {
+    public void setStrike(Double strike) {
         this.strike = strike;
     }
 
-    public BigDecimal getBid() {
+    public Double getBid() {
         return bid;
     }
 
-    public void setBid(BigDecimal bid) {
+    public void setBid(Double bid) {
         this.bid = bid;
     }
 
-    public BigDecimal getAsk() {
+    public Double getAsk() {
         return ask;
     }
 
-    public void setAsk(BigDecimal ask) {
+    public void setAsk(Double ask) {
         this.ask = ask;
     }
 }

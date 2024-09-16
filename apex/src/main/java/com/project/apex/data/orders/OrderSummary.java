@@ -3,7 +3,6 @@ package com.project.apex.data.orders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.project.apex.data.Order;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +32,7 @@ public class OrderSummary {
         boolean isValidOrder = orderNode.get("class").asText().equals("otoco");
 
        if (isValidOrder) {
-           logger.info("Assigning JsonNode to Order: {}", orderNode);
+           logger.trace("Assigning JsonNode to Order: {}", orderNode);
 
            try {
                Order order = new ObjectMapper().treeToValue(orderNode, Order.class);
@@ -51,11 +50,12 @@ public class OrderSummary {
                logger.error(e.getMessage());
            }
        } else {
-           logger.warn("Non-option: {}", orderNode);
+           logger.debug("Non-option: {}", orderNode);
        }
     }
 
-    public List<Order> getAllOrders() {
+    public List<Order>
+    getAllOrders() {
         return allOrders;
     }
 

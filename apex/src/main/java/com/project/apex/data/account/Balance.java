@@ -1,122 +1,120 @@
-package com.project.apex.data;
+package com.project.apex.data.account;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
-import java.math.BigDecimal;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Balance {
 
     @JsonProperty("unsettledFunds")
     @JsonAlias("balances.cash.unsettled_funds")
-    private BigDecimal unsettledFunds;
+    private Double unsettledFunds;
 
     @JsonProperty("cashAvailable")
     @JsonAlias("balances.cash.cash_available")
-    private BigDecimal cashAvailable;
+    private Double cashAvailable;
 
     @JsonProperty("marketValue")
     @JsonAlias("balances.market_value")
-    private BigDecimal marketValue;
+    private Double marketValue;
 
     @JsonProperty("openPl")
     @JsonAlias("balances.open_pl")
-    private BigDecimal openPl;
+    private Double openPl;
 
     @JsonProperty("closePl")
     @JsonAlias("balances.close_pl")
-    private BigDecimal closePl;
+    private Double closePl;
 
     // Amount of cash being held for open orders
     @JsonProperty("pendingCash")
     @JsonAlias("balances.pending_cash")
-    private BigDecimal pendingCash;
+    private Double pendingCash;
 
     // Cash unavailable for trading in the account
     @JsonProperty("unclearedFunds")
     @JsonAlias("balances.uncleared_funds")
-    private BigDecimal unclearedFunds;
+    private Double unclearedFunds;
 
     // Margin account: Sandbox
     @JsonProperty("totalEquity")
     @JsonAlias("balances.total_equity")
-    private BigDecimal totalEquity;
+    private Double totalEquity;
 
     @JsonProperty("totalCash")
     @JsonAlias("balances.total_cash")
-    private BigDecimal totalCash;
+    private Double totalCash;
 
-    public BigDecimal getUnsettledFunds() {
+    public Double getUnsettledFunds() {
         return unsettledFunds;
     }
 
-    public void setUnsettledFunds(BigDecimal unsettledFunds) {
+    public void setUnsettledFunds(Double unsettledFunds) {
         this.unsettledFunds = unsettledFunds;
     }
 
-    public BigDecimal getCashAvailable() {
+    public Double getCashAvailable() {
         return cashAvailable;
     }
 
-    public void setCashAvailable(BigDecimal cashAvailable) {
+    public void setCashAvailable(Double cashAvailable) {
         this.cashAvailable = cashAvailable;
     }
 
-    public BigDecimal getMarketValue() {
+    public Double getMarketValue() {
         return marketValue;
     }
 
-    public void setMarketValue(BigDecimal marketValue) {
+    public void setMarketValue(Double marketValue) {
         this.marketValue = marketValue;
     }
 
-    public BigDecimal getOpenPl() {
+    public Double getOpenPl() {
         return openPl;
     }
 
-    public void setOpenPl(BigDecimal openPl) {
+    public void setOpenPl(Double openPl) {
         this.openPl = openPl;
     }
 
-    public BigDecimal getClosePl() {
+    public Double getClosePl() {
         return closePl;
     }
 
-    public void setClosePl(BigDecimal closePl) {
+    public void setClosePl(Double closePl) {
         this.closePl = closePl;
     }
 
-    public BigDecimal getPendingCash() {
+    public Double getPendingCash() {
         return pendingCash;
     }
 
-    public void setPendingCash(BigDecimal pendingCash) {
+    public void setPendingCash(Double pendingCash) {
         this.pendingCash = pendingCash;
     }
 
-    public BigDecimal getUnclearedFunds() {
+    public Double getUnclearedFunds() {
         return unclearedFunds;
     }
 
-    public void setUnclearedFunds(BigDecimal unclearedFunds) {
+    public void setUnclearedFunds(Double unclearedFunds) {
         this.unclearedFunds = unclearedFunds;
     }
 
-    public BigDecimal getTotalCash() {
+    public Double getTotalCash() {
         return totalCash;
     }
 
-    public void setTotalCash(BigDecimal totalCash) {
+    public void setTotalCash(Double totalCash) {
         this.totalCash = totalCash;
     }
 
-    public BigDecimal getTotalEquity() {
+    public Double getTotalEquity() {
         return totalEquity;
     }
 
-    public void setTotalEquity(BigDecimal totalEquity) {
+    public void setTotalEquity(Double totalEquity) {
         this.totalEquity = totalEquity;
     }
 

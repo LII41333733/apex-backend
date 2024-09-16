@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.config.EnvConfig;
-import com.project.apex.data.QuoteData;
+import com.project.apex.data.market.QuoteData;
 import com.project.apex.component.ApiRequest;
 import com.project.apex.component.ClientWebSocket;
 import com.project.apex.util.Convert;
@@ -18,10 +18,10 @@ import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -43,7 +43,7 @@ public class MarketService {
     ObjectMapper objectMapper = new ObjectMapper();
 
     @Autowired
-    public MarketService(EnvConfig envConfig, ClientWebSocket clientWebSocket) {
+    public MarketService(EnvConfig envConfig, @Lazy ClientWebSocket clientWebSocket) {
         this.envConfig = envConfig;
         this.clientWebSocket = clientWebSocket;
     }
@@ -55,14 +55,14 @@ public class MarketService {
     public List<QuoteData> getOptionsChain(String symbol, String optionType) throws IOException, URISyntaxException {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbol", symbol);
-//        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
-        queryParams.put("expiration", getNextExpiration(false));
+        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
+//        queryParams.put("expiration", getNextExpiration(false));
         String response = ApiRequest.get(getBaseApi() + "/options/chains", queryParams);
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode optionsNode = objectMapper.readTree(response).path("options");
         JsonNode options = Optional.ofNullable(optionsNode).filter(node -> !node.isNull()).orElseThrow();
         JsonNode quotes = Optional.ofNullable(options.path("option")).filter(node -> !node.isNull()).orElseThrow();
-        BigDecimal price = getPrice(symbol);
+        Double price = getPrice(symbol);
 
         try {
             List<QuoteData> optionsList = objectMapper.readValue(quotes.toString(), new TypeReference<>() {});
@@ -95,13 +95,13 @@ public class MarketService {
         }
     }
 
-    public BigDecimal getPrice(String symbol) throws IOException, URISyntaxException {
+    public Double getPrice(String symbol) throws IOException, URISyntaxException {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbols", symbol);
         String response = ApiRequest.get(getBaseApi() + "/quotes", queryParams);
         JsonNode jsonNode = new ObjectMapper().readTree(response).path("quotes").path("quote");
         String price = jsonNode.get("last").asText();
-        return BigDecimal.valueOf(Double.parseDouble(price));
+        return Double.valueOf(Double.parseDouble(price));
     }
 
     public JsonNode getPrices(String symbols) throws IOException, URISyntaxException {
@@ -161,8 +161,8 @@ public class MarketService {
             QuoteData quoteData = new QuoteData();
             JsonNode quote = objectMapper.readTree(jsonMessage);
             quoteData.setSymbol(quote.get("symbol").asText());
-            quoteData.setBid(new BigDecimal(quote.get("bid").asText()));
-            quoteData.setAsk(new BigDecimal(quote.get("ask").asText()));
+            quoteData.setBid(quote.get("bid").asDouble());
+            quoteData.setAsk(quote.get("ask").asDouble());
             optionsMap.put(quoteData.getSymbol(), quoteData);
             Record<QuoteData> quoteRecord = new Record<>("quote", quoteData);
             clientWebSocket.sendMessageToAll(Convert.objectToString(quoteRecord));
@@ -199,8 +199,8 @@ public class MarketService {
                     QuoteData quote = entry.getValue();
 
                     // Generate random bid and ask prices
-                    BigDecimal bid = BigDecimal.valueOf(Math.round(random.nextDouble() * 200.0) / 100.0);
-                    BigDecimal ask = BigDecimal.valueOf(Math.round(random.nextDouble() * 200.0) / 100.0);
+                    Double bid = Math.round(random.nextDouble() * 200.0) / 100.0;
+                    Double ask = Math.round(random.nextDouble() * 200.0) / 100.0;
 
                     // Update bid and ask
                     quote.setBid(bid);
@@ -226,14 +226,9 @@ public class MarketService {
             String spyPriceData = getPriceFull("SPY");
             String qqqPriceData = getPriceFull("QQQ");
             String iwmPriceData = getPriceFull("IWM");
-
-            System.out.println(spyPriceData);
-            System.out.println(qqqPriceData);
-            System.out.println(iwmPriceData);
             clientWebSocket.sendData(new Record<>("SPY", spyPriceData));
             clientWebSocket.sendData(new Record<>("QQQ", qqqPriceData));
             clientWebSocket.sendData(new Record<>("IWM", iwmPriceData));
-            System.out.println("---");
         } catch (Exception e) {
             logger.error(e.getMessage());
         }

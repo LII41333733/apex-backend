@@ -1,9 +1,11 @@
 package com.project.apex.controller;
 
 import com.project.apex.component.MarketStream;
-import com.project.apex.data.BuyData;
-import com.project.apex.data.SandboxTradeRequest;
+import com.project.apex.data.trades.BaseTrade.BaseTradeManager;
+import com.project.apex.data.trades.BuyData;
+import com.project.apex.data.trades.RiskType;
 import com.project.apex.service.AccountService;
+import com.project.apex.service.BaseTradeService;
 import com.project.apex.service.OrdersService;
 import com.project.apex.service.TradeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +14,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
-import java.util.NoSuchElementException;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,13 +27,24 @@ public class TradeController {
     private final AccountService accountService;
     private final MarketStream marketStream;
     private final OrdersService ordersService;
+    private final BaseTradeService baseTradeService;
+    private final BaseTradeManager baseTradeManager;
 
     @Autowired
-    public TradeController(TradeService tradeService, AccountService accountService, MarketStream marketStream, OrdersService ordersService) {
+    public TradeController(
+            TradeService tradeService,
+            AccountService accountService,
+            MarketStream marketStream,
+            OrdersService ordersService,
+            BaseTradeService baseTradeService,
+            BaseTradeManager baseTradeManager
+    ) {
         this.tradeService = tradeService;
         this.accountService = accountService;
         this.marketStream = marketStream;
         this.ordersService = ordersService;
+        this.baseTradeService = baseTradeService;
+        this.baseTradeManager = baseTradeManager;
     }
 
     public record CancelTradeRequest(String orderId) {}
@@ -51,11 +63,16 @@ public class TradeController {
 
     @PostMapping("/placeTrade")
     public ResponseEntity<?> placeTrade(@RequestBody BuyData buyData) throws IOException {
+        RiskType riskType = RiskType.valueOf(buyData.getRiskType());
+
         try {
-            String response = tradeService.placeTrade(buyData);
+            switch (riskType) {
+                case BASE -> baseTradeManager.placeTrade(buyData);
+            };
+
             marketStream.stopAllStreams();
 
-            return new ResponseEntity<>(response, HttpStatus.OK);
+            return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
             logger.error(e);
             return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);

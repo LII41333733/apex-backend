@@ -1,14 +1,12 @@
-package com.project.apex.data;
+package com.project.apex.data.trades;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.math.BigDecimal;
-
 public class Leg {
     @JsonAlias("avg_fill_price")
     @JsonProperty("avgFillPrice")
-    private BigDecimal avgFillPrice;
+    private double avgFillPrice;
     @JsonProperty("class")
     private String className;
     @JsonAlias("create_date")
@@ -17,25 +15,25 @@ public class Leg {
     private String duration;
     @JsonAlias("exec_quantity")
     @JsonProperty("execQuantity")
-    private BigDecimal execQuantity;
+    private double execQuantity;
     private long id;
     @JsonAlias("last_fill_price")
     @JsonProperty("lastFillPrice")
-    private BigDecimal lastFillPrice;
+    private double lastFillPrice;
     @JsonAlias("last_fill_quantity")
     @JsonProperty("lastFillQuantity")
-    private BigDecimal lastFillQuantity;
+    private double lastFillQuantity;
     @JsonAlias("option_symbol")
     @JsonProperty("optionSymbol")
     private String optionSymbol;
-    private BigDecimal price;
+    private double price;
     private Integer quantity;
     @JsonAlias("reason_description")
     @JsonProperty("reasonDescription")
     private String reasonDescription;
     @JsonAlias("remaining_quantity")
     @JsonProperty("remainingQuantity")
-    private BigDecimal remainingQuantity;
+    private double remainingQuantity;
     private String side;
     private String status;
     private String symbol;
@@ -45,14 +43,14 @@ public class Leg {
     private String type;
     @JsonAlias("stop_price")
     @JsonProperty("stopPrice")
-    private BigDecimal stopPrice;
+    private double stopPrice;
 
     // Getters and Setters
-    public BigDecimal getAvgFillPrice() {
+    public double getAvgFillPrice() {
         return avgFillPrice;
     }
 
-    public void setAvgFillPrice(BigDecimal avgFillPrice) {
+    public void setAvgFillPrice(double avgFillPrice) {
         this.avgFillPrice = avgFillPrice;
     }
 
@@ -80,11 +78,11 @@ public class Leg {
         this.duration = duration;
     }
 
-    public BigDecimal getExecQuantity() {
+    public double getExecQuantity() {
         return execQuantity;
     }
 
-    public void setExecQuantity(BigDecimal execQuantity) {
+    public void setExecQuantity(double execQuantity) {
         this.execQuantity = execQuantity;
     }
 
@@ -96,19 +94,19 @@ public class Leg {
         this.id = id;
     }
 
-    public BigDecimal getLastFillPrice() {
+    public double getLastFillPrice() {
         return lastFillPrice;
     }
 
-    public void setLastFillPrice(BigDecimal lastFillPrice) {
+    public void setLastFillPrice(double lastFillPrice) {
         this.lastFillPrice = lastFillPrice;
     }
 
-    public BigDecimal getLastFillQuantity() {
+    public double getLastFillQuantity() {
         return lastFillQuantity;
     }
 
-    public void setLastFillQuantity(BigDecimal lastFillQuantity) {
+    public void setLastFillQuantity(double lastFillQuantity) {
         this.lastFillQuantity = lastFillQuantity;
     }
 
@@ -120,11 +118,11 @@ public class Leg {
         this.optionSymbol = optionSymbol;
     }
 
-    public BigDecimal getPrice() {
+    public double getPrice() {
         return price;
     }
 
-    public void setPrice(BigDecimal price) {
+    public void setPrice(double price) {
         this.price = price;
     }
 
@@ -144,11 +142,11 @@ public class Leg {
         this.reasonDescription = reasonDescription;
     }
 
-    public BigDecimal getRemainingQuantity() {
+    public double getRemainingQuantity() {
         return remainingQuantity;
     }
 
-    public void setRemainingQuantity(BigDecimal remainingQuantity) {
+    public void setRemainingQuantity(double remainingQuantity) {
         this.remainingQuantity = remainingQuantity;
     }
 
@@ -192,11 +190,11 @@ public class Leg {
         this.type = type;
     }
 
-    public BigDecimal getStopPrice() {
+    public double getStopPrice() {
         return stopPrice;
     }
 
-    public void setStopPrice(BigDecimal stopPrice) {
+    public void setStopPrice(double stopPrice) {
         this.stopPrice = stopPrice;
     }
 }

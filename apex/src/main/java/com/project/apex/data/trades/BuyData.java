@@ -1,18 +1,16 @@
-package com.project.apex.data;
-
-import java.math.BigDecimal;
+package com.project.apex.data.trades;
 
 public class BuyData {
 
-    BigDecimal price;
-
+    Double price;
     String option;
+    String riskType;
 
-    public BigDecimal getPrice() {
+    public Double getPrice() {
         return price;
     }
 
-    public void setPrice(BigDecimal price) {
+    public void setPrice(Double price) {
         this.price = price;
     }
 
@@ -24,11 +22,20 @@ public class BuyData {
         this.option = option;
     }
 
+    public String getRiskType() {
+        return riskType.toUpperCase();
+    }
+
+    public void setRiskType(String riskType) {
+        this.riskType = riskType;
+    }
+
     @Override
     public String toString() {
         return "BuyData{" +
                 "price=" + price +
                 ", option='" + option + '\'' +
+                ", riskType='" + riskType.toUpperCase() + '\'' +
                 '}';
     }
 }

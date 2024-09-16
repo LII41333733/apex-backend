@@ -3,6 +3,8 @@ package com.project.apex.component;
 import com.project.apex.service.MarketService;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -15,10 +17,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @Component
 public class MarketStream {
+    private static final Logger logger = LoggerFactory.getLogger(MarketStream.class);
+
 
     private WebSocketClient webSocketClient;
 
@@ -27,7 +30,6 @@ public class MarketStream {
 
     private final MarketService marketService;
 
-    private static final Logger logger = Logger.getLogger(MarketStream.class.getName());
 
     public MarketStream(MarketService marketService) {
         this.marketService = marketService;
@@ -41,14 +43,14 @@ public class MarketStream {
                 try {
                     webSocketClient.connectBlocking(); // Blocking connect moved to a separate thread
                 } catch (InterruptedException e) {
-                    logger.log(Level.SEVERE, "Failed to connect WebSocket", e);
+                    logger.error("Failed to connect WebSocket", e);
                     Thread.currentThread().interrupt(); // Restore interrupted state
                 }
             }).start();
         } catch (URISyntaxException e) {
-            logger.log(Level.SEVERE, "WebSocket URI is invalid", e);
+            logger.error("WebSocket URI is invalid", e);
         } catch (Exception e) {
-            logger.log(Level.SEVERE, "Error during WebSocket connection", e);
+            logger.error("Error during WebSocket connection", e);
         }
     }
 
@@ -61,18 +63,14 @@ public class MarketStream {
     }
 
     public void reconnect() throws URISyntaxException {
-        if (webSocketClient != null && webSocketClient.isOpen()) {
-            return;  // No need to reconnect if already connected
-        }
-        if (webSocketClient != null) {
-            webSocketClient.close();  // Ensure the previous connection is closed
-        }
         createNewWebSocketClient();
         new Thread(() -> {
             try {
                 webSocketClient.connectBlocking(); // Blocking connect in a new thread
+                String message = marketService.buildOptionsStreamCall();
+                this.sendMessage(message);
             } catch (InterruptedException e) {
-                logger.log(Level.SEVERE, "Failed to reconnect WebSocket", e);
+                logger.error("Failed to reconnect WebSocket", e);
                 Thread.currentThread().interrupt(); // Restore interrupted state
             }
         }).start();
@@ -106,11 +104,10 @@ public class MarketStream {
 
             @Override
             public void onMessage(String message) {
-                logger.info("Market Stream message: " + message);
+//                logger.debug("Market Stream message: " + message);
 
                 try {
                     JsonNode jsonNode = new ObjectMapper().readTree(message);
-                    System.out.println(jsonNode.toString());
                     String type = jsonNode.get("type").asText();
 
                     if (type.equals("quote")) {
@@ -128,7 +125,7 @@ public class MarketStream {
 
             @Override
             public void onError(Exception e) {
-                logger.log(Level.SEVERE, "Exception in WebSocket connection", e);
+                logger.error("Exception in WebSocket connection", e);
             }
         };
     }

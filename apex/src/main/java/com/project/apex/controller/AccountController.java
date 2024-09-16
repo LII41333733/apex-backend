@@ -1,7 +1,7 @@
 package com.project.apex.controller;
 
-import com.project.apex.data.AccountBalance;
-import com.project.apex.data.Balance;
+import com.project.apex.data.account.AccountBalance;
+import com.project.apex.data.account.Balance;
 //import com.project.apex.service.TradierService;
 import com.project.apex.service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;

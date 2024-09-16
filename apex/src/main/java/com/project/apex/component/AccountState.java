@@ -1,6 +1,6 @@
 package com.project.apex.component;
 
-import com.project.apex.data.Balance;
+import com.project.apex.data.account.Balance;
 import org.springframework.stereotype.Component;
 
 @Component
