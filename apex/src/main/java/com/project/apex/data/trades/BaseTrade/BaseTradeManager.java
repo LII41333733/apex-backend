@@ -74,6 +74,11 @@ public class BaseTradeManager {
                 BaseTrade trade = tradeOpt.get();
                 JsonNode fillOrder = tradeLegMap.get(FILL);
                 JsonNode trim1Order = tradeLegMap.get(TRIM1);
+                JsonNode trim2Order = tradeLegMap.get(TRIM2);
+                JsonNode runnersOrder = tradeLegMap.get(TRIM3);
+                boolean hasTrim1Order = trim1Order != null;
+                boolean hasTrim2Order = trim2Order != null;
+                boolean hasTrim3Order = runnersOrder != null;
 
                 if (trade.getStatus() == NEW) {
                     logger.info("BaseTradeManager.watch: Initializing Trade (NEW): {}", id);
@@ -95,7 +100,7 @@ public class BaseTradeManager {
                     }
                 }
 
-                if (trade.getStatus() == PREOPEN && !isRejected(trim1Order)) {
+                if (trade.getStatus() == PREOPEN && !hasTrim1Order) {
                     baseTradeService.placeTrims(trade);
                     openTrades.add(id);
                     trade.setStatus(OPEN);
@@ -108,6 +113,9 @@ public class BaseTradeManager {
                 } else if (trade.getStatus() == REJECTED && !rejectedTrades.contains(id)) {
                     rejectedTrades.add(id);
                     logger.info("BaseTradeManager.watch: Order Rejected: {}", id);
+                } else if (trade.getStatus() == OPEN && !openTrades.contains(id)) {
+                    openTrades.add(id);
+                    logger.info("BaseTradeManager.watch: Order Open: {}", id);
                 }
 
                 if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
@@ -115,16 +123,14 @@ public class BaseTradeManager {
 
                     if (trade.getStatus().ordinal() > PREOPEN.ordinal()) {
                         logger.info("BaseTradeManager.watch: Updating Trim Statuses: {}", id);
-                        JsonNode trim2Order = tradeLegMap.get(TRIM2);
-                        JsonNode runnersOrder = tradeLegMap.get(TRIM3);
                         Integer stopOrderId = getId(runnersOrder);
 
-                        if (trade.getTrimStatus() < 1 && isFilled(trim1Order)) {
+                        if (trade.getTrimStatus() < 1 && (trade.getMaxPrice() > trade.getTrim1Price())) {
                             trade.setTrimStatus((byte) 1);
                             logger.info("BaseTradeManager.watch: Trim 1 Hit!: {}", id);
                         }
 
-                        if (trim2Order != null && trade.getTrimStatus() < 2 && isFilled(trim2Order)) {
+                        if (trim2Order != null && trade.getTrimStatus() < 2 && (trade.getMaxPrice() > trade.getTrim2Price())) {
                             trade.setTrimStatus((byte) 2);
                             logger.info("BaseTradeManager.watch: Trim 2 Hit! Moving Stops: {}", id);
                             baseTradeService.modifyStopOrder(stopOrderId, trade.getRunnersFloorPrice(), trade);

@@ -56,39 +56,37 @@ public class BaseTradeService {
     }
 
     public void placeFill(BuyData buyData) {
-        logger.info("BaseTradeService.placeFill: Start");
 
         try {
-           Balance balance = accountService.getBalanceData();
-           double totalEquity = balance.getTotalEquity();
-           logger.info("Total Equity: {}", totalEquity);
-           double totalCash = balance.getTotalCash();
-           logger.info("Total Cash: {}", totalCash);
-           int tradeAllotment = (int) Math.floor(totalEquity * BaseTrade.tradePercentModifier);
-           logger.info("Trade Allotment: {}", tradeAllotment);
-           Long id = Convert.getMomentAsCode();
-           logger.info("Order Id: {}", id);
+            Long id = Convert.getMomentAsCode();
+            logger.info("BaseTradeService.placeFill: Start: {}", id);
+            Balance balance = accountService.getBalanceData();
+            double totalEquity = balance.getTotalEquity();
+            logger.info("Total Equity: {}", totalEquity);
+            double totalCash = balance.getTotalCash();
+            logger.info("Total Cash: {}", totalCash);
+            int tradeAllotment = (int) Math.floor(totalEquity * BaseTrade.tradePercentModifier);
+            logger.info("Trade Allotment: {}", tradeAllotment);
+            logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
+            if (tradeAllotment < totalCash) {
+                double ask = buyData.getPrice();
+                logger.info("Ask: {}", ask);
+                double contractCost = ask * 100;
+                logger.info("Contract Cost: {}", contractCost);
+                int quantity = (int) Math.floor(tradeAllotment /contractCost);
+                logger.info("Quantity: {}", quantity);
 
-           logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
-           if (tradeAllotment < totalCash) {
-               double ask = buyData.getPrice();
-               logger.info("Ask: {}", ask);
-               double contractCost = ask * 100;
-               logger.info("Contract Cost: {}", contractCost);
-               int quantity = (int) Math.floor(tradeAllotment /contractCost);
-               logger.info("Quantity: {}", quantity);
+                Map<String, String> parameters = new HashMap<>();
+                parameters.put("class", "option");
+                parameters.put("duration", "day");
+                parameters.put("quantity", String.valueOf(quantity));
+                parameters.put("side", "buy_to_open");
+                parameters.put("option_symbol", buyData.getOption());
+                parameters.put("price", String.valueOf(ask));
+                parameters.put("type", "limit");
+                parameters.put("tag", buyData.getRiskType().toUpperCase() + "-" + id + "-" +  BaseTradeLeg.FILL.name());
 
-               Map<String, String> parameters = new HashMap<>();
-               parameters.put("class", "option");
-               parameters.put("duration", "day");
-               parameters.put("quantity", String.valueOf(quantity));
-               parameters.put("side", "buy_to_open");
-               parameters.put("option_symbol", buyData.getOption());
-               parameters.put("price", String.valueOf(ask));
-               parameters.put("type", "limit");
-               parameters.put("tag", buyData.getRiskType().toUpperCase() + "-" + id + "-" +  BaseTradeLeg.FILL.name());
-
-               new Record<>("BaseTradeService.placeFill: Fill Parameters", new OrderFillRecord(
+                new Record<>("BaseTradeService.placeFill: Fill Parameters", new OrderFillRecord(
                    id,
                    totalEquity,
                    totalCash,
@@ -97,26 +95,27 @@ public class BaseTradeService {
                    contractCost,
                    quantity,
                    parameters
-               ));
+                ));
 
-               String response = accountService.post("/orders", parameters);
-               logger.info("BaseTradeService.placeFill: Response: {}", response);
-               JsonNode jsonNode = new ObjectMapper().readTree(response).get("order");
+                JsonNode json = accountService.post("/orders", parameters);
+                JsonNode jsonNode = json.get("order");
 
-               if (isOk(jsonNode)) {
+                if (jsonNode != null) {
                    logger.info("BaseTradeService.placeFill: Fill Successful: {}", id);
                    BaseTrade trade = new BaseTrade(id, totalEquity, ask, quantity);
                    baseTradeRepository.save(trade);
-               } else {
-                   logger.error("BaseTradeService.placeFill: Fill UnSuccessful: {} Status: {}", id, getStatus(jsonNode));
-               }
-           } else {
+                } else {
+                   logger.error("BaseTradeService.placeFill: Fill UnSuccessful");
+                }
+            } else {
                logger.error("BaseTradeService.placeFill: Not enough cash available to make trade");
-           }
+            }
        } catch (Exception e) {
            logger.error("BaseTradeService.placeFill: ERROR: Exception", e);
        }
     }
+
+
 
     public void placeTrims(BaseTrade trade) {
         logger.info("BaseTradeService.placeTrims: Start");
@@ -140,10 +139,10 @@ public class BaseTradeService {
 
             new Record<>("BaseTradeService.placeTrim1: Trim 1 Parameters", trim1Parameters);
 
-            String trim1Response = accountService.post("/orders", trim1Parameters);
-            JsonNode trim1JsonNode = new ObjectMapper().readTree(trim1Response).get("order");
+            JsonNode trim1Json = accountService.post("/orders", trim1Parameters);
+            JsonNode trim1JsonNode = trim1Json.get("order");
 
-            if (isOk(trim1JsonNode)) {
+            if (trim1JsonNode != null) {
                 logger.info("BaseTradeService.placeTrim1: Trim 1 Successful");
 
                 if (trade.getTrim2Quantity() > 0) {
@@ -152,7 +151,7 @@ public class BaseTradeService {
                     logger.info("BaseTradeService.placeTrim1: No Trim 2 quantity available)");
                 }
             } else {
-                logger.error("BaseTradeService.placeTrim1: Trim 1 UnSuccessful: Status: {}", getStatus(trim1JsonNode));
+                logger.error("BaseTradeService.placeTrim1: Trim 1 UnSuccessful");
             }
         } catch (Exception e) {
             logger.error("BaseTradeService.placeTrim1: ERROR: Exception: {}", e.getMessage(), e);
@@ -172,16 +171,18 @@ public class BaseTradeService {
             trim2Parameters.put("quantity[0]", String.valueOf(trade.getTrim2Quantity()));
             trim2Parameters.put("quantity[1]", String.valueOf(trade.getTrim2Quantity()));
             trim2Parameters.put("stop[0]", String.valueOf(roundedDouble(trade.getStopPrice())));
-            trim2Parameters.put("price[0]", String.valueOf(trade.getStopPrice()));
+            trim2Parameters.put("price[0]", String.valueOf(trade.getStopPrice() - 0.2));
             trim2Parameters.put("price[1]", String.valueOf(trade.getTrim2Price()));
             trim2Parameters.put("type[0]", "stop_limit");
             trim2Parameters.put("type[1]", "limit");
             trim2Parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" +  BaseTradeLeg.TRIM2.name());
 
-            String trim2Response = accountService.post("/orders", trim2Parameters);
-            JsonNode trim2JsonNode = new ObjectMapper().readTree(trim2Response).get("order");
+            new Record<>("BaseTradeService.placeTrim2: Trim 2 Parameters", trim2Parameters);
 
-            if (isOk(trim2JsonNode)) {
+            JsonNode trim2JsonNode = accountService.post("/orders", trim2Parameters);
+            JsonNode trim2Json = trim2JsonNode.get("order");
+
+            if (trim2Json != null) {
                 logger.info("BaseTradeService.placeTrim2: Trim 2 Successful");
 
                 if (trade.getRunnersQuantity() > 0) {
@@ -190,7 +191,7 @@ public class BaseTradeService {
                     logger.info("BaseTradeService.placeTrim2: No Runners quantity available)");
                 }
             } else {
-                logger.error("BaseTradeService.placeTrim2: Trim 2 UnSuccessful: Status: {}", getStatus(trim2JsonNode));
+                logger.error("BaseTradeService.placeTrim2: Trim 2 UnSuccessful");
             }
         } catch (Exception e) {
             logger.error("BaseTradeService.placeTrim2: ERROR: Exception: {}", e.getMessage(), e);
@@ -200,23 +201,25 @@ public class BaseTradeService {
     public void placeRunners(BaseTrade trade) {
         logger.info("BaseTradeService.placeRunners: Start");
         try {
-            Map<String, String> parameters = new HashMap<>();
-            parameters.put("class", "option");
-            parameters.put("duration", "gtc");
-            parameters.put("option_symbol", trade.getOptionSymbol());
-            parameters.put("side", "sell_to_close");
-            parameters.put("quantity", trade.getRunnersQuantity().toString());
-            parameters.put("stop", trade.getStopPrice().toString());
-            parameters.put("type", "stop");
-            parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" +  BaseTradeLeg.TRIM3.name());
+            Map<String, String> runnersParameters = new HashMap<>();
+            runnersParameters.put("class", "option");
+            runnersParameters.put("duration", "gtc");
+            runnersParameters.put("option_symbol", trade.getOptionSymbol());
+            runnersParameters.put("side", "sell_to_close");
+            runnersParameters.put("quantity", trade.getRunnersQuantity().toString());
+            runnersParameters.put("stop", trade.getStopPrice().toString());
+            runnersParameters.put("type", "stop");
+            runnersParameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" +  BaseTradeLeg.TRIM3.name());
 
-            String response = accountService.post("/orders", parameters);
-            JsonNode runnersJsonNode = new ObjectMapper().readTree(response).get("order");
+            new Record<>("BaseTradeService.placeRunners: Runners Parameters", runnersParameters);
 
-            if (isOk(runnersJsonNode)) {
+            JsonNode runnersJsonNode = accountService.post("/orders", runnersParameters);
+            JsonNode runnersJson = runnersJsonNode.get("order");
+
+            if (runnersJson != null) {
                 logger.info("BaseTradeService.placeRunners: Runners Successful");
             } else {
-                logger.error("BaseTradeService.placeRunners: Runners UnSuccessful: Status: {}", getStatus(runnersJsonNode));
+                logger.error("BaseTradeService.placeRunners: Runners UnSuccessful");
             }
         } catch (Exception e) {
             logger.error("BaseTradeService.placeRunners: ERROR: Exception: {}", e.getMessage(), e);
@@ -230,16 +233,15 @@ public class BaseTradeService {
             parameters.put("stop[0]", newPrice.toString());
             parameters.put("limit[0]", newPrice.toString());
 
-            String response = accountService.put("/orders/" + orderId, parameters);
-            JsonNode jsonNode = new ObjectMapper().readTree(response).get("order");
+            JsonNode response = accountService.put("/orders/" + orderId, parameters);
 
-            if (isOk(jsonNode)) {
+            if (isOk(response)) {
                 logger.info("BaseTradeService.modifyStopOrder: Modify Stop Successful");
             } else {
-                logger.error("BaseTradeService.modifyStopOrder: Modify Stop UnSuccessful: Status: {}", getStatus(jsonNode));
+                logger.error("BaseTradeService.modifyStopOrder: Modify Stop UnSuccessful");
             }
         } catch (Exception e) {
-            logger.error("BaseTradeService.modifyStopOrder: ERROR: Exception: {}", e.getMessage(), e);
+            21 logger.error("BaseTradeService.modifyStopOrder: ERROR: Exception: {}", e.getMessage(), e);
         }
     }
 

@@ -1,17 +1,12 @@
 package com.project.apex.service;
 
-import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.component.ClientWebSocket;
 import com.project.apex.data.trades.*;
-import com.project.apex.data.orders.Order;
-import com.project.apex.data.orders.OrderSummary;
 import com.project.apex.data.trades.BaseTrade.BaseTradeLeg;
 import com.project.apex.data.trades.BaseTrade.BaseTradeManager;
 import com.project.apex.data.trades.BaseTrade.BaseTradeRecord;
-import com.project.apex.model.OtocoTrade;
-import com.project.apex.repository.BaseTradeRepository;
 import com.project.apex.util.Record;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -19,14 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.*;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 @Service
 public class OrdersService {
@@ -53,8 +41,8 @@ public class OrdersService {
         logger.info("OrdersService.fetchOrders: Start: Fetching orders from Tradier");
 
         try {
-            String response = accountService.get("/orders?includeTags=true");
-            JsonNode orders = new ObjectMapper().readTree(response).get("orders").get("order");
+            JsonNode response = accountService.get("/orders?includeTags=true");
+            JsonNode orders = response.get("orders").get("order");
             new Record<>("OrdersService.fetchOrders: Orders Received: {}", orders);
 
             if (orders == null) {

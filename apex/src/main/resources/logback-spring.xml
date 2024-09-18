@@ -72,4 +72,15 @@
     <logger name="org.hibernate.SQL" level="off"/>
     <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="off"/>
     <logger name="org.hibernate.type.descriptor.sql.BasicExtractor" level="off"/>
+
+    <!-- Suppress org.apache.http.wire logging -->
+    <logger name="org.apache.http.wire" level="OFF" />
+    <logger name="org.apache.http.headers" level="OFF" />
+
+    <!-- Additional suppressions if needed -->
+    <logger name="org.apache.http.impl.conn.Wire" level="OFF" />
+    <logger name="org.apache.http.impl.conn" level="OFF" />
+    <logger name="o.a.h.c.s.SSLConnectionSocketFactory" level="OFF" />
+    <logger name="o.a.h.i.c.PoolingHttpClientConnectionManager" level="OFF" />
+    <logger name="o.a.h.i.c.DefaultManagedHttpClientConnection" level="OFF" />
 </configuration>

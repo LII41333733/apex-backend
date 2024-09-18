@@ -38,13 +38,13 @@ public class AccountService {
         return envConfig.getApiEndpoint() + "/v1/accounts/" + envConfig.getClientId();
     }
 
-    public String get(String url) throws IOException {
+    public JsonNode get(String url) throws IOException {
         logger.info("AccountService.get: Start: Url: {}", getBaseApi() + url);
 
         try {
             HttpUriRequest request = addHeaders(RequestBuilder.get(getBaseApi() + url), envConfig).build();
             HttpResponse response = HttpClientBuilder.create().build().execute(request);
-            return EntityUtils.toString(response.getEntity());
+            return getParsedResponse(response);
         } catch (IOException e) {
             logger.error("AccountService.get: ERROR: IOException:", e);
             throw e;
@@ -54,14 +54,13 @@ public class AccountService {
         }
     }
 
-    public String post(String url, Map<String, String> parameters) throws IOException {
+    public JsonNode post(String url, Map<String, String> parameters) throws IOException {
         logger.info("AccountService.post: Start: Url: {} Parameters: {}", getBaseApi() + url, parameters);
 
         try {
             RequestBuilder request = addHeaders(RequestBuilder.post(getBaseApi() + url), envConfig);
             addParameters(request, parameters);
             HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
-            logger.info("AccountService.post: Response: {}", response);
             return getParsedResponse(response);
         } catch (IOException e) {
             logger.error("AccountService.post: ERROR: IOException:", e);
@@ -72,16 +71,14 @@ public class AccountService {
         }
     }
 
-    public String put(String url, Map<String, String> parameters) throws IOException {
+    public JsonNode put(String url, Map<String, String> parameters) throws IOException {
         logger.info("AccountService.put: Start: Url: {} Parameters: {}", getBaseApi() + url, parameters);
 
         try {
             RequestBuilder request = addHeaders(RequestBuilder.put(getBaseApi() + url), envConfig);
             addParameters(request, parameters);
             HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
-            String parsedResponse = getParsedResponse(response);
-            logger.info("AccountService.put: Response: {}", parsedResponse);
-            return parsedResponse;
+            return getParsedResponse(response);
         } catch (IOException e) {
             logger.error("AccountService.put: ERROR: IOException:", e);
             throw e;
@@ -92,28 +89,34 @@ public class AccountService {
     }
 
     public Balance getBalanceData() throws IOException {
-        logger.info("Retrieving balance data");
+        logger.info("AccountService.getBalanceData: Retrieving balance data");
         Balance balance = new Balance();
-        JsonNode balances = new ObjectMapper().readTree(get("/balances")).get("balances");
+        JsonNode balancesJson = get("/balances");
+        JsonNode balances = balancesJson.get("balances");
 
-        if (envConfig.isSandbox()) {
-            Double totalCash = balances.get("total_cash").asDouble();
-            balance.setUnsettledFunds((double) 0);
-            balance.setCashAvailable(totalCash);
-            balance.setTotalCash(totalCash);
+        if (balances != null) {
+            if (envConfig.isSandbox()) {
+                Double totalCash = balances.get("total_cash").asDouble();
+                balance.setUnsettledFunds((double) 0);
+                balance.setCashAvailable(totalCash);
+                balance.setTotalCash(totalCash);
+            } else {
+                balance.setUnsettledFunds(balances.get("cash").get("unsettled_funds").asDouble());
+                balance.setCashAvailable(balances.get("cash").get("cash_available").asDouble());
+                balance.setTotalCash(balance.getCashAvailable());
+            }
+
+            balance.setTotalEquity(balances.get("total_equity").asDouble());
+            balance.setMarketValue(balances.get("market_value").asDouble());
+            balance.setOpenPl(balances.get("open_pl").asDouble());
+            balance.setClosePl(balances.get("close_pl").asDouble());
+            balance.setPendingCash(balances.get("pending_cash").asDouble());
+            balance.setUnclearedFunds(balances.get("uncleared_funds").asDouble());
+            return balance;
         } else {
-            balance.setUnsettledFunds(balances.get("cash").get("unsettled_funds").asDouble());
-            balance.setCashAvailable(balances.get("cash").get("cash_available").asDouble());
-            balance.setTotalCash(balance.getCashAvailable());
+            logger.info("AccountService.getBalanceData: Balance Data returned null");
+            return balance;
         }
-
-        balance.setTotalEquity(balances.get("total_equity").asDouble());
-        balance.setMarketValue(balances.get("market_value").asDouble());
-        balance.setOpenPl(balances.get("open_pl").asDouble());
-        balance.setClosePl(balances.get("close_pl").asDouble());
-        balance.setPendingCash(balances.get("pending_cash").asDouble());
-        balance.setUnclearedFunds(balances.get("uncleared_funds").asDouble());
-        return balance;
     }
 
     public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
