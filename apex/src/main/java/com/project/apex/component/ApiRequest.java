@@ -6,8 +6,8 @@ import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -19,7 +19,7 @@ import java.util.Map;
 @Component
 public class ApiRequest {
 
-    private static final Logger logger = LogManager.getLogger(ApiRequest.class);
+    private static final Logger logger = LoggerFactory.getLogger(ApiRequest.class);
 
     private static String clientSecret;
 

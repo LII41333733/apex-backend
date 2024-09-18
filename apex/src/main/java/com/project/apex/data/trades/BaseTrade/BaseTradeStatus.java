@@ -1,8 +1,9 @@
 package com.project.apex.data.trades.BaseTrade;
 
 public enum BaseTradeStatus {
+    NEW,
     PENDING,
-    PRE_OPEN,
+    PREOPEN,
     OPEN,
     RUNNERS,
     FILLED,

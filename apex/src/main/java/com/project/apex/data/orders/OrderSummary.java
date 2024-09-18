@@ -50,7 +50,7 @@ public class OrderSummary {
                logger.error(e.getMessage());
            }
        } else {
-           logger.debug("Non-option: {}", orderNode);
+           logger.info("Non-option: {}", orderNode);
        }
     }
 

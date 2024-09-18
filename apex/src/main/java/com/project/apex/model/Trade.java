@@ -23,11 +23,11 @@ public abstract class Trade {
     @Column(name = "close_date")
     private LocalDateTime closeDate;
     @Column(name = "max_price")
-    private Double maxPrice;
+    private Double maxPrice = (double) 0;
     @Column(name = "quantity")
     private Integer quantity;
     @Column(name = "pl")
-    private Double pl;
+    private Integer pl;
     @Column(name = "trade_amount")
     private Integer tradeAmount;
     @Column(name = "last_price")
@@ -113,11 +113,11 @@ public abstract class Trade {
         this.quantity = quantity;
     }
 
-    public Double getPl() {
+    public Integer getPl() {
         return pl;
     }
 
-    public void setPl(Double pl) {
+    public void setPl(Integer pl) {
         this.pl = pl;
     }
 

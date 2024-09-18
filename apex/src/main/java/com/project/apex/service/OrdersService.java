@@ -35,115 +35,60 @@ public class OrdersService {
     private final AccountService accountService;
     private final ClientWebSocket clientWebSocket;
 //    private final BaseTradeRepository otocoTradeRepository;
-    private final BaseTradeRepository baseTradeRepository;
-    private final MarketService marketService;
-    private final BaseTradeService baseTradeService;
-    private final BaseTradeManager baseTradeManager;
 
-    private boolean ordersAreEmpty = false;
+    private final BaseTradeManager baseTradeManager;
 
     @Autowired
     public OrdersService(
             AccountService accountService,
             @Lazy ClientWebSocket clientWebSocket,
-            MarketService marketService,
-            BaseTradeRepository baseTradeRepository,
-            BaseTradeService baseTradeService,
             BaseTradeManager baseTradeManager) {
         this.accountService = accountService;
         this.clientWebSocket = clientWebSocket;
-        this.baseTradeRepository = baseTradeRepository;
-        this.marketService = marketService;
-        this.baseTradeService = baseTradeService;
         this.baseTradeManager = baseTradeManager;
     }
 
     @PostConstruct
     public void fetchOrders() {
+        logger.info("OrdersService.fetchOrders: Start: Fetching orders from Tradier");
+
         try {
-            logger.info("Fetching orders");
-            OrderSummary orderSummary = new OrderSummary();
-            JsonNode orders = new ObjectMapper().readTree(accountService.get("/orders?includeTags=true")).get("orders").get("order");
+            String response = accountService.get("/orders?includeTags=true");
+            JsonNode orders = new ObjectMapper().readTree(response).get("orders").get("order");
+            new Record<>("OrdersService.fetchOrders: Orders Received: {}", orders);
 
             if (orders == null) {
-                ordersAreEmpty = true;
-                logger.info("No orders found");
+                logger.info("OrdersService.fetchOrders: No orders found");
             } else {
                 RiskMap ordersByRiskType = handleMapOrdersByRiskType(orders);
                 BaseTradeRecord baseTradeRecord = baseTradeManager.watch(ordersByRiskType.get(RiskType.BASE));
-//                convertOrdersToLottoTrades(ordersByRiskType.get(RiskType.LOTTO));
-//                convertOrdersToOtocoTrades(ordersByRiskType.get(RiskType.OTOCO));
-//                orderSummary.mapOrderToSummary(orders);
-//                syncTradeRepository(orderSummary);
 
                 if (clientWebSocket.isConnected()) {
                     clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord)));
                 }
             }
-
-//                List<Order> allOrders = orderSummary.getAllOrders();
-//
-//                if (!allOrders.isEmpty()) {
-//                    String symbols = allOrders.stream()
-//                            .map((Order openOrder) -> {
-//                                List<Leg> legs = openOrder.getLeg();
-//                                return legs.get(0).getOptionSymbol();
-//                            }) // Extract the symbol property
-//                            .collect(Collectors.joining(",")); // Join with commas
-//
-//                    JsonNode quotes = marketService.getPrices(symbols);
-//
-//                    Consumer<JsonNode> processQuote = quote -> {
-//                        String symbol = quote.get("symbol").asText();
-//                        Double bid = quote.get("bid").asDouble();
-//
-//                        allOrders.stream()
-//                                .filter(order -> order.getLeg().get(0).getOptionSymbol().equals(symbol))
-//                                .forEach(order -> order.setLast(bid));
-//                    };
-//
-//                    if (quotes.isObject()) {
-//                        processQuote.accept(quotes);
-//                    } else {
-//                        for (JsonNode node : quotes) {
-//                            processQuote.accept(node);
-//                        }
-//                    }
-//                }
-//
-//                clientWebSocket.sendData(new Record<>("orderSummary", orderSummary));
-//            }
-        } catch (JsonMappingException e) {
-            logger.error(e.getMessage());
-        } catch (IllegalArgumentException e) {
-            logger.error("Invalid tag values for order: {}", e);
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("OrdersService.fetchOrders: ERROR: Exception: {}", e.getMessage(), e);
         }
     }
 
-//    @Transactional
-//    public void convertOrdersToBaseTrades(Map<MomentCode, Map<TradeLeg, JsonNode>> baseOrders) {
-//        logger.info("Converting orders to base trade: {}", baseOrders);
-//
-
-//
-//
-//    }
-
     public RiskMap handleMapOrdersByRiskType(JsonNode orders) {
         RiskMap ordersByRiskType = new RiskMap();
-
         Consumer<JsonNode> mapOrders = orderJson -> {
-            String[] tag = orderJson.get("tag").asText().split("-");
-            RiskType riskType = RiskType.valueOf(tag[0]);
-            Long id = Long.valueOf(tag[1]);
-            BaseTradeLeg baseTradeLeg = BaseTradeLeg.valueOf(tag[2]);
+            JsonNode tag = orderJson.get("tag");
+            logger.info("OrdersService.handleMapOrdersByRiskType: Mapping Tag: {}", tag);
 
-            ordersByRiskType
+            if (tag != null) {
+                String[] split = tag.asText().split("-");
+                RiskType riskType = RiskType.valueOf(split[0]);
+                Long id = Long.valueOf(split[1]);
+                BaseTradeLeg baseTradeLeg = BaseTradeLeg.valueOf(split[2]);
+
+                ordersByRiskType
                     .computeIfAbsent(riskType, e -> new TradeMap())
                     .computeIfAbsent(id, e -> new TradeLegMap())
                     .put(baseTradeLeg, orderJson);
+            }
         };
 
         if (orders.isObject()) {
@@ -157,29 +102,48 @@ public class OrdersService {
         return ordersByRiskType;
     }
 
-    @Transactional
-    public void convertOrdersToBaseTrades(Map<Long, Map<TradeLeg, JsonNode>> baseOrders) {
-        logger.info("Converting orders to base trade: {}", baseOrders);
 
-//        for (Map.Entry<MomentCode, Map<TradeLeg, JsonNode>> baseOrderEntry : baseOrders.entrySet()) {
-//            MomentCode momentCode = baseOrderEntry.getKey();
-//            Map<TradeLeg, JsonNode> tradeLegMap = baseOrderEntry.getValue();
-//
-//            for (Map.Entry<TradeLeg, JsonNode> tradeLegEntry : tradeLegMap.entrySet()) {
-//                try {
-//                    JsonNode jsonData = tradeLegEntry.getValue();
-//
-//                } catch (Exception e) {
-//                    logger.error("Error processing trade: {}", tradeLegEntry, e);
-//                }
-//            }
-//        }
 
-        // Initialized only!!
-        baseTradeService.compileSummary();
-        // use base trade service to handle open trades,
-        // requesting prices and handling trade updates/stops/fills, etc.
-    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//    @Transactional
+//    public void convertOrdersToBaseTrades(Map<Long, Map<TradeLeg, JsonNode>> baseOrders) {
+//        logger.info("Converting orders to base trade: {}", baseOrders);
+//
+////        for (Map.Entry<MomentCode, Map<TradeLeg, JsonNode>> baseOrderEntry : baseOrders.entrySet()) {
+////            MomentCode momentCode = baseOrderEntry.getKey();
+////            Map<TradeLeg, JsonNode> tradeLegMap = baseOrderEntry.getValue();
+////
+////            for (Map.Entry<TradeLeg, JsonNode> tradeLegEntry : tradeLegMap.entrySet()) {
+////                try {
+////                    JsonNode jsonData = tradeLegEntry.getValue();
+////
+////                } catch (Exception e) {
+////                    logger.error("Error processing trade: {}", tradeLegEntry, e);
+////                }
+////            }
+////        }
+//
+//        // Initialized only!!
+////        baseTradeService.compileSummary();
+//        // use base trade service to handle open trades,
+//        // requesting prices and handling trade updates/stops/fills, etc.
+//    }
 
 
 //    public void convertOrdersToLottoTrades(Map<MomentCode, Map<TradeLeg, JsonNode>> lottoOrders) {
@@ -224,20 +188,20 @@ public class OrdersService {
 //        }
 //    }
 
-    public void convertOrdersToTrades(Order order, OtocoTrade trade) {
-        Leg triggerLeg = order.getLeg().get(0);
-        Leg limitLeg = order.getLeg().get(1);
-        Leg stopLeg = order.getLeg().get(2);
-        trade.setOrderId(order.getId());
-        trade.setOptionSymbol(triggerLeg.getOptionSymbol());
-        trade.setSymbol(triggerLeg.getSymbol());
-        trade.setLossStreak(0);
-        trade.setStopPrice(stopLeg.getStopPrice());
-        trade.setLimitPrice(limitLeg.getPrice());
-        trade.setFillPrice(triggerLeg.getPrice());
-        trade.setOpenDate(LocalDateTime.ofInstant(Instant.parse(order.getCreateDate()), ZoneId.of("America/New_York")));
-        trade.setQuantity(triggerLeg.getQuantity());
-    }
+//    public void convertOrdersToTrades(Order order, OtocoTrade trade) {
+//        Leg triggerLeg = order.getLeg().get(0);
+//        Leg limitLeg = order.getLeg().get(1);
+//        Leg stopLeg = order.getLeg().get(2);
+//        trade.setOrderId(order.getId());
+//        trade.setOptionSymbol(triggerLeg.getOptionSymbol());
+//        trade.setSymbol(triggerLeg.getSymbol());
+//        trade.setLossStreak(0);
+//        trade.setStopPrice(stopLeg.getStopPrice());
+//        trade.setLimitPrice(limitLeg.getPrice());
+//        trade.setFillPrice(triggerLeg.getPrice());
+//        trade.setOpenDate(LocalDateTime.ofInstant(Instant.parse(order.getCreateDate()), ZoneId.of("America/New_York")));
+//        trade.setQuantity(triggerLeg.getQuantity());
+//    }
 
 //    public void finalizeOtocoTrade(Order order, OtocoTrade trade) {
 //        List<OtocoTrade> trades = otocoTradeRepository.findLastFinalizedTrade();

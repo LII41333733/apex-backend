@@ -10,8 +10,8 @@ import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +21,7 @@ import java.util.*;
 @Service
 public class TradeService {
 
-    private static final Logger logger = LogManager.getLogger(TradeService.class);
+    private static final Logger logger = LoggerFactory.getLogger(TradeService.class);
     protected final EnvConfig envConfig;
     private final MarketService marketService;
     private final AccountService accountService;
@@ -67,7 +67,7 @@ public class TradeService {
                 case OTOCO -> handleOtocoTrade(buyData);
             };
         } catch (Exception e) {
-            logger.error(e);
+            logger.error("placeTrade", e);
         }
     }
 

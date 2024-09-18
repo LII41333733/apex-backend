@@ -15,8 +15,8 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 @Service
 public class MarketService {
 
-    private static final Logger logger = LogManager.getLogger(MarketService.class);
+    private static final Logger logger = LoggerFactory.getLogger(MarketService.class);
     private LinkedHashMap<String, QuoteData> optionsMap;
     private List<String> symbolList;
     private final EnvConfig envConfig;
@@ -55,8 +55,8 @@ public class MarketService {
     public List<QuoteData> getOptionsChain(String symbol, String optionType) throws IOException, URISyntaxException {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbol", symbol);
-        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
-//        queryParams.put("expiration", getNextExpiration(false));
+//        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
+        queryParams.put("expiration", getNextExpiration(false));
         String response = ApiRequest.get(getBaseApi() + "/options/chains", queryParams);
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode optionsNode = objectMapper.readTree(response).path("options");
@@ -66,8 +66,6 @@ public class MarketService {
 
         try {
             List<QuoteData> optionsList = objectMapper.readValue(quotes.toString(), new TypeReference<>() {});
-
-            // Filter the options based on criteria and map to symbol
             List<QuoteData> list = optionsList.stream()
                     .filter(option -> optionType.equalsIgnoreCase(option.getOptionType()))
                     .filter(option -> {
@@ -85,9 +83,7 @@ public class MarketService {
 
             setOptionsMap(list.stream()
                     .collect(Collectors.toMap(QuoteData::getSymbol, data -> data)));
-
             setSymbolList(list.stream().map(QuoteData::getSymbol).collect(Collectors.toList()));
-
             return list;
         } catch (IOException e) {
             logger.error("getOptionsChain", e);
@@ -101,7 +97,7 @@ public class MarketService {
         String response = ApiRequest.get(getBaseApi() + "/quotes", queryParams);
         JsonNode jsonNode = new ObjectMapper().readTree(response).path("quotes").path("quote");
         String price = jsonNode.get("last").asText();
-        return Double.valueOf(Double.parseDouble(price));
+        return Double.parseDouble(price);
     }
 
     public JsonNode getPrices(String symbols) throws IOException, URISyntaxException {

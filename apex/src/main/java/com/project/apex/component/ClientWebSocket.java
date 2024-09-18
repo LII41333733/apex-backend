@@ -35,11 +35,12 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
     @Autowired
-    public ClientWebSocket(AccountService accountService,
-                           TradeService tradeService,
-                           MarketStream marketStream,
-                           @Lazy OrdersService ordersService,
-                           MarketService marketService) {
+    public ClientWebSocket(
+            AccountService accountService,
+           TradeService tradeService,
+           MarketStream marketStream,
+           @Lazy OrdersService ordersService,
+           MarketService marketService) {
         this.accountService = accountService;
         this.tradeService = tradeService;
         this.ordersService = ordersService;
@@ -104,7 +105,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 20000)
+    @Scheduled(fixedRate = 3000)
 //    @Scheduled(fixedRate = 3000)
     public void fetchOrdersScheduleActive() {
         if (!sessions.isEmpty()) {
@@ -119,7 +120,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 10000)
+    @Scheduled(fixedRate = 5000)
     public void fetchOrdersSchedule() {
         if (sessions.isEmpty()) {
             ordersService.fetchOrders();

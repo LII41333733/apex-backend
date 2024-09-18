@@ -18,15 +18,23 @@ public class BaseTradeOrder {
     }
 
     public static boolean isFilled(JsonNode order) {
-        return BaseTradeOrder.getStatus(order) == OrderStatus.filled;
+        return getStatus(order) == OrderStatus.filled;
+    }
+
+    public static boolean isOpen(JsonNode order) {
+        return getStatus(order) == OrderStatus.open;
     }
 
     public static boolean isCanceled(JsonNode order) {
-        return BaseTradeOrder.getStatus(order) == OrderStatus.canceled;
+        return getStatus(order) == OrderStatus.canceled;
+    }
+
+    public static boolean isRejected(JsonNode order) {
+        return getStatus(order) == OrderStatus.rejected;
     }
 
     public static boolean isOk(JsonNode order) {
-        return BaseTradeOrder.getStatus(order) == OrderStatus.ok;
+        return getStatus(order) == OrderStatus.ok;
     }
 
     public static String getSymbol(JsonNode order) {

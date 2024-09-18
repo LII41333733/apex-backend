@@ -13,4 +13,9 @@ public record BaseTradeRecord(
         List<Long> filledTrades,
         List<Long> canceledTrades,
         List<Long> rejectedTrades
-) {}
+) {
+    @Override
+    public Map<Long, BaseTrade> allTrades() {
+        return allTrades;
+    }
+}

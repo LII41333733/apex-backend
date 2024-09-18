@@ -3,8 +3,8 @@ package com.project.apex.controller;
 import com.project.apex.service.AdminDetailsService;
 import com.project.apex.service.TradeService;
 import com.project.apex.util.JwtUtil;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/")
 public class AuthController {
-    private static final Logger logger = LogManager.getLogger(AuthController.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -32,14 +32,19 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<UIToken> createAuthenticationToken(@RequestBody AuthRequest authRequest) {
-        authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
-        );
+       try {
+           authenticationManager.authenticate(
+                   new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
+           );
 
-        final UserDetails userDetails = adminDetailsService.loadUserByUsername(authRequest.getUsername());
-        String details = jwtUtil.generateToken(userDetails);
-        logger.info(details);
-        return new ResponseEntity<>(new UIToken(details), HttpStatus.OK);
+           final UserDetails userDetails = adminDetailsService.loadUserByUsername(authRequest.getUsername());
+           String details = jwtUtil.generateToken(userDetails);
+           logger.info(details);
+           return new ResponseEntity<>(new UIToken(details), HttpStatus.OK);
+       } catch (Exception e) {
+           logger.error(e.getMessage());
+           return new ResponseEntity<>(new UIToken(e.getMessage()), HttpStatus.UNAUTHORIZED);
+       }
     }
 }
 

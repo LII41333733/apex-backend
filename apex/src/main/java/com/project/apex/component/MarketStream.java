@@ -104,7 +104,7 @@ public class MarketStream {
 
             @Override
             public void onMessage(String message) {
-//                logger.debug("Market Stream message: " + message);
+//                logger.info("Market Stream message: " + message);
 
                 try {
                     JsonNode jsonNode = new ObjectMapper().readTree(message);

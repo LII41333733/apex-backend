@@ -16,8 +16,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
-import java.math.RoundingMode;
 import java.util.Map;
+
+import static com.project.apex.util.HttpRequest.*;
 
 @Service
 public class AccountService {
@@ -38,42 +39,56 @@ public class AccountService {
     }
 
     public String get(String url) throws IOException {
-        HttpUriRequest request = RequestBuilder
-                .get(getBaseApi() + url)
-                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
-                .addHeader("Accept", "application/json")
-                .build();
+        logger.info("AccountService.get: Start: Url: {}", getBaseApi() + url);
 
-        final HttpResponse response = HttpClientBuilder.create().build().execute(request);
-        return EntityUtils.toString(response.getEntity());
+        try {
+            HttpUriRequest request = addHeaders(RequestBuilder.get(getBaseApi() + url), envConfig).build();
+            HttpResponse response = HttpClientBuilder.create().build().execute(request);
+            return EntityUtils.toString(response.getEntity());
+        } catch (IOException e) {
+            logger.error("AccountService.get: ERROR: IOException:", e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("AccountService.get: ERROR: Exception: {}", e.getMessage(), e);
+            throw new IOException(e);
+        }
     }
 
     public String post(String url, Map<String, String> parameters) throws IOException {
-        RequestBuilder request = RequestBuilder
-                .post(getBaseApi() + url)
-                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
-                .addHeader("Accept", "application/json");
+        logger.info("AccountService.post: Start: Url: {} Parameters: {}", getBaseApi() + url, parameters);
 
-        for (Map.Entry<String, String> entry : parameters.entrySet()) {
-            request.addParameter(entry.getKey(), entry.getValue());
+        try {
+            RequestBuilder request = addHeaders(RequestBuilder.post(getBaseApi() + url), envConfig);
+            addParameters(request, parameters);
+            HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
+            logger.info("AccountService.post: Response: {}", response);
+            return getParsedResponse(response);
+        } catch (IOException e) {
+            logger.error("AccountService.post: ERROR: IOException:", e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("AccountService.post: ERROR: Exception: {}", e.getMessage(), e);
+            throw new IOException(e);
         }
-
-        final HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
-        return EntityUtils.toString(response.getEntity());
     }
 
     public String put(String url, Map<String, String> parameters) throws IOException {
-        RequestBuilder request = RequestBuilder
-                .put(getBaseApi() + url)
-                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
-                .addHeader("Accept", "application/json");
+        logger.info("AccountService.put: Start: Url: {} Parameters: {}", getBaseApi() + url, parameters);
 
-        for (Map.Entry<String, String> entry : parameters.entrySet()) {
-            request.addParameter(entry.getKey(), entry.getValue());
+        try {
+            RequestBuilder request = addHeaders(RequestBuilder.put(getBaseApi() + url), envConfig);
+            addParameters(request, parameters);
+            HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
+            String parsedResponse = getParsedResponse(response);
+            logger.info("AccountService.put: Response: {}", parsedResponse);
+            return parsedResponse;
+        } catch (IOException e) {
+            logger.error("AccountService.put: ERROR: IOException:", e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("AccountService.put: ERROR: Exception: {}", e.getMessage(), e);
+            throw new IOException(e);
         }
-
-        final HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
-        return EntityUtils.toString(response.getEntity());
     }
 
     public Balance getBalanceData() throws IOException {
