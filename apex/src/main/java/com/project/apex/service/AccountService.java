@@ -39,7 +39,7 @@ public class AccountService {
     }
 
     public JsonNode get(String url) throws IOException {
-        logger.info("AccountService.get: Start: Url: {}", getBaseApi() + url);
+        logger.debug("AccountService.get: Start: Url: {}", getBaseApi() + url);
 
         try {
             HttpUriRequest request = addHeaders(RequestBuilder.get(getBaseApi() + url), envConfig).build();
@@ -55,7 +55,7 @@ public class AccountService {
     }
 
     public JsonNode post(String url, Map<String, String> parameters) throws IOException {
-        logger.info("AccountService.post: Start: Url: {} Parameters: {}", getBaseApi() + url, parameters);
+        logger.debug("AccountService.post: Start: Url: {} Parameters: {}", getBaseApi() + url, parameters);
 
         try {
             RequestBuilder request = addHeaders(RequestBuilder.post(getBaseApi() + url), envConfig);
@@ -89,7 +89,7 @@ public class AccountService {
     }
 
     public Balance getBalanceData() throws IOException {
-        logger.info("AccountService.getBalanceData: Retrieving balance data");
+        logger.debug("AccountService.getBalanceData: Retrieving balance data");
         Balance balance = new Balance();
         JsonNode balancesJson = get("/balances");
         JsonNode balances = balancesJson.get("balances");

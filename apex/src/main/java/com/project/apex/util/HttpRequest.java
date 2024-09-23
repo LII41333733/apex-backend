@@ -32,7 +32,7 @@ public class HttpRequest {
 
     public static JsonNode getParsedResponse(HttpResponse response) throws IOException {
         String parsedResponse = EntityUtils.toString(response.getEntity());
-        logger.info("HttpRequest.getParsedResponse: {}", parsedResponse);
+        logger.debug("HttpRequest.getParsedResponse: {}", parsedResponse);
         return objectMapper.readTree(parsedResponse);
     }
 }

@@ -1,3 +1,8 @@
 package com.project.apex.data.trades;
 
-public interface TradeLeg {}
+public enum TradeLeg {
+    FILL,
+    TRIM1,
+    TRIM2,
+    STOP
+}

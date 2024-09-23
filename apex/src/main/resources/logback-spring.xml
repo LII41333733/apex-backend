@@ -83,4 +83,7 @@
     <logger name="o.a.h.c.s.SSLConnectionSocketFactory" level="OFF" />
     <logger name="o.a.h.i.c.PoolingHttpClientConnectionManager" level="OFF" />
     <logger name="o.a.h.i.c.DefaultManagedHttpClientConnection" level="OFF" />
+    <logger name="o.s.w.s.a.NativeWebSocketSession" level="OFF" />
+    <logger name="o.s.w.s.h.LoggingWebSocketHandlerDecorator" level="OFF" />
+    <logger name="c.p.apex.component.ClientWebSocket" level="OFF" />
 </configuration>
