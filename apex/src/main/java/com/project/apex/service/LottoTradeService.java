@@ -7,8 +7,8 @@ import com.project.apex.data.orders.OrderFillRecord;
 import com.project.apex.data.trades.BuyData;
 import com.project.apex.data.trades.TradeLeg;
 import com.project.apex.data.trades.TradeLegMap;
-import com.project.apex.model.BaseTrade;
-import com.project.apex.repository.BaseTradeRepository;
+import com.project.apex.model.LottoTrade;
+import com.project.apex.repository.LottoTradeRepository;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
 import org.slf4j.Logger;
@@ -16,51 +16,51 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
 
-import static com.project.apex.data.trades.TradeLeg.*;
+import static com.project.apex.data.trades.TradeLeg.STOP;
+import static com.project.apex.data.trades.TradeLeg.TRIM1;
 import static com.project.apex.util.TradeOrder.*;
 
 @Service
-public class BaseTradeService {
+public class LottoTradeService {
 
     /**
      * For base trades, on the UI, hide all options with asks less than .11
      * They should be saved for lottos
      */
 
-    private static final Logger logger = LoggerFactory.getLogger(BaseTradeService.class);
+    private static final Logger logger = LoggerFactory.getLogger(LottoTradeService.class);
     protected final EnvConfig envConfig;
     private final MarketService marketService;
     private final AccountService accountService;
-    private final BaseTradeRepository baseTradeRepository;
+    private final LottoTradeRepository lottoTradeRepository;
 
     @Autowired
-    public BaseTradeService(
+    public LottoTradeService(
             EnvConfig envConfig,
             MarketService marketService,
             AccountService accountService,
-            BaseTradeRepository baseTradeRepository
+            LottoTradeRepository lottoTradeRepository
     ) {
         this.envConfig = envConfig;
         this.marketService = marketService;
         this.accountService = accountService;
-        this.baseTradeRepository = baseTradeRepository;
+        this.lottoTradeRepository = lottoTradeRepository;
     }
 
     public void placeFill(BuyData buyData) {
         try {
             Long id = Convert.getMomentAsCode();
-            logger.info("BaseTradeService.placeFill: Start: {}", id);
+            logger.info("LottoTradeService.placeFill: Start: {}", id);
             Balance balance = accountService.getBalanceData();
             double totalEquity = balance.getTotalEquity();
             logger.info("Total Equity: {}", totalEquity);
             double totalCash = balance.getTotalCash();
             logger.info("Total Cash: {}", totalCash);
-            int tradeAllotment = (int) Math.floor(totalEquity * BaseTrade.tradePercentModifier);
+            int tradeAllotment = (int) Math.floor(totalEquity * LottoTrade.tradePercentModifier);
             logger.info("Trade Allotment: {}", tradeAllotment);
             logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
             if (tradeAllotment < totalCash) {
@@ -68,7 +68,7 @@ public class BaseTradeService {
                 logger.info("Ask: {}", ask);
                 double contractCost = ask * 100;
                 logger.info("Contract Cost: {}", contractCost);
-                int quantity = (int) Math.floor(tradeAllotment / contractCost);
+                int quantity = (int) Math.floor(tradeAllotment /contractCost);
                 logger.info("Quantity: {}", quantity);
                 Map<String, String> parameters = new HashMap<>();
                 parameters.put("class", "option");
@@ -78,9 +78,9 @@ public class BaseTradeService {
                 parameters.put("option_symbol", buyData.getOption());
                 parameters.put("price", String.valueOf(ask));
                 parameters.put("type", "limit");
-                parameters.put("tag", buyData.getRiskType().toUpperCase() + "-" + id + "-" + TradeLeg.FILL);
+                parameters.put("tag", buyData.getRiskType().toUpperCase() + "-" + id + "-" +  TradeLeg.FILL);
 
-                new Record<>("BaseTradeService.placeFill: Fill Parameters", new OrderFillRecord(
+                new Record<>("LottoTradeService.placeFill: Fill Parameters", new OrderFillRecord(
                         id,
                         totalEquity,
                         totalCash,
@@ -95,22 +95,22 @@ public class BaseTradeService {
                 JsonNode jsonNode = json.get("order");
 
                 if (isOk(jsonNode)) {
-                    logger.info("BaseTradeService.placeFill: Fill Successful: {}", id);
-                    BaseTrade trade = new BaseTrade(id, totalEquity, ask, quantity);
-                    baseTradeRepository.save(trade);
+                    logger.info("LottoTradeService.placeFill: Fill Successful: {}", id);
+                    LottoTrade trade = new LottoTrade(id, totalEquity, ask, quantity);
+                    lottoTradeRepository.save(trade);
                 } else {
-                    logger.error("BaseTradeService.placeFill: Fill UnSuccessful: {}", id);
+                    logger.error("LottoTradeService.placeFill: Fill UnSuccessful: {}", id);
                 }
             } else {
-                logger.error("BaseTradeService.placeFill: Not enough cash available to make trade: {}", id);
+                logger.error("LottoTradeService.placeFill: Not enough cash available to make trade: {}", id);
             }
         } catch (Exception e) {
-            logger.error("BaseTradeService.placeFill: ERROR: Exception", e);
+            logger.error("LottoTradeService.placeFill: ERROR: Exception", e);
         }
     }
 
-    public void placeMarketSell(BaseTrade trade, TradeLeg TradeLeg) {
-        logger.info("BaseTradeService.placeMarketSell: Start");
+    public void placeMarketSell(LottoTrade trade, TradeLeg TradeLeg) {
+        logger.info("LottoTradeService.placeMarketSell: Start");
 
         try {
             Map<String, String> parameters = new HashMap<>();
@@ -119,75 +119,76 @@ public class BaseTradeService {
             parameters.put("type", "market");
             parameters.put("option_symbol", trade.getOptionSymbol());
             parameters.put("side", "sell_to_close");
-            parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" + TradeLeg.name());
+            parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" +  TradeLeg.name());
 
             switch (TradeLeg) {
                 case TRIM1 -> parameters.put("quantity", String.valueOf(trade.getTrim1Quantity()));
-                case TRIM2 -> parameters.put("quantity", String.valueOf(trade.getTrim2Quantity()));
                 case STOP -> {
                     switch (trade.getTrimStatus()) {
-                        case 0 ->
-                                parameters.put("quantity", String.valueOf(trade.getTrim1Quantity() + trade.getTrim2Quantity() + trade.getRunnersQuantity()));
-                        case 1 ->
-                                parameters.put("quantity", String.valueOf(trade.getTrim2Quantity() + trade.getRunnersQuantity()));
-                        case 2 -> parameters.put("quantity", String.valueOf(trade.getRunnersQuantity()));
+                        case 0 -> parameters.put("quantity", String.valueOf(trade.getTrim1Quantity() + trade.getRunnersQuantity()));
+                        case 1 -> parameters.put("quantity", String.valueOf(trade.getRunnersQuantity()));
                     }
                 }
             }
 
-            new Record<>("BaseTradeService.placeMarketSell: Parameters:", parameters);
+            new Record<>("LottoTradeService.placeMarketSell: Parameters:", parameters);
 
             JsonNode response = accountService.post("/orders", parameters);
             JsonNode order = response.get("order");
 
             if (isOk(order)) {
-                logger.info("BaseTradeService.placeMarketSell: Market Sell Successful: {}", trade.getId());
+                logger.info("LottoTradeService.placeMarketSell: Market Sell Successful: {}", trade.getId());
             } else {
-                logger.error("BaseTradeService.placeMarketSell: Market Sell UnSuccessful: {}", trade.getId());
+                logger.error("LottoTradeService.placeMarketSell: Market Sell UnSuccessful: {}", trade.getId());
             }
         } catch (Exception e) {
-            logger.error("BaseTradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);
+            logger.error("LottoTradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);
         }
     }
 
-    public void setLastAndMaxPrices(BaseTrade trade) throws IOException, URISyntaxException {
-        logger.debug("BaseTradeService.setLastAndMaxPrices: Start: {}", trade.getId());
+    public void setLastAndMaxPrices(LottoTrade trade) throws IOException, URISyntaxException {
+        logger.debug("LottoTradeService.setLastAndMaxPrices: Start: {}", trade.getId());
         JsonNode quote = marketService.getPrices(trade.getOptionSymbol());
         double bid = quote.get("bid").asDouble();
         double tradeMaxPrice = trade.getMaxPrice();
+        logger.debug("Last Price: {}", bid);
         trade.setLastPrice(bid);
+        logger.debug("Max Price: {}", Math.max(tradeMaxPrice, bid));
         trade.setMaxPrice(Math.max(tradeMaxPrice, bid));
     }
 
-    public void finalizeTrade(BaseTrade trade, TradeLegMap tradeLegMap) {
-        logger.info("BaseTradeService.finalizeTrade: Start: {}", trade.getId());
+    public void finalizeTrade(LottoTrade trade, TradeLegMap tradeLegMap) {
+        logger.debug("LottoTradeService.finalizeTrade: Start: {}", trade.getId());
         int totalQuantity = trade.getQuantity();
 
         if (tradeLegMap.containsKey(TRIM1)) {
             JsonNode trim1 = tradeLegMap.get(TRIM1);
-            logger.info("BaseTradeService.finalizeTrade: Avg. Fill Price (TRIM1): {}", getAvgFillPrice(trim1));
+            logger.debug("LottoTradeService.finalizeTrade: Avg. Fill Price (TRIM1): {}", getAvgFillPrice(trim1));
             double finalTrim1Price = getAvgFillPrice(trim1);
             trade.setTrim1PriceFinal(finalTrim1Price);
             trade.setFinalAmount((int) (trade.getFinalAmount() + (trade.getTrim1Quantity() * (finalTrim1Price * 100))));
             totalQuantity = totalQuantity - trade.getTrim1Quantity();
         }
 
-        if (tradeLegMap.containsKey(TRIM2)) {
-            JsonNode trim2 = tradeLegMap.get(TRIM2);
-            logger.info("BaseTradeService.finalizeTrade: Avg. Fill Price (TRIM2): {}", getAvgFillPrice(trim2));
-            double finalTrim2Price = getAvgFillPrice(trim2);
-            trade.setTrim2PriceFinal(finalTrim2Price);
-            trade.setFinalAmount((int) (trade.getFinalAmount() + (trade.getTrim1Quantity() * (finalTrim2Price * 100))));
-            totalQuantity = totalQuantity - trade.getTrim2Quantity();
-        }
-
         JsonNode stop = tradeLegMap.get(STOP);
-        logger.info("BaseTradeService.finalizeTrade: Avg. Fill Price (STOP): {}", getAvgFillPrice(stop));
+        logger.debug("LottoTradeService.finalizeTrade: Avg. Fill Price (STOP): {}", getAvgFillPrice(stop));
         double finalStopPrice = getAvgFillPrice(stop);
         trade.setStopPriceFinal(finalStopPrice);
         trade.setFinalAmount((int) (trade.getFinalAmount() + (totalQuantity * (finalStopPrice * 100))));
         trade.setCloseDate(getCloseDate(stop));
         trade.setPl(trade.getFinalAmount() - trade.getTradeAmount());
         trade.setPostTradeBalance(trade.getPreTradeBalance() + trade.getPl());
+    }
+
+    public List<LottoTrade> fetchTrades() {
+        return lottoTradeRepository.findAll();
+    }
+
+    @Scheduled(fixedRate = 10000)
+    public void fetchTradesSchedule() {
+        // Only during market hours
+        List<LottoTrade> trades = fetchTrades();
+
+//        List<LottoTrade> filteredTrades = trades.stream().filter(e -> e.);
     }
 }

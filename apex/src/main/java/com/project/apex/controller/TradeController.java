@@ -4,6 +4,7 @@ import com.project.apex.component.MarketStream;
 import com.project.apex.data.trades.BuyData;
 import com.project.apex.data.trades.RiskType;
 import com.project.apex.service.BaseTradeService;
+import com.project.apex.service.LottoTradeService;
 import com.project.apex.service.OrdersService;
 import com.project.apex.service.TradeService;
 import org.slf4j.Logger;
@@ -23,16 +24,19 @@ public class TradeController {
     private final MarketStream marketStream;
     private final OrdersService ordersService;
     private final BaseTradeService baseTradeService;
+    private final LottoTradeService lottoTradeService;
 
     @Autowired
     public TradeController(TradeService tradeService,
                            MarketStream marketStream,
                            OrdersService ordersService,
-                           BaseTradeService baseTradeService) {
+                           BaseTradeService baseTradeService,
+                           LottoTradeService lottoTradeService) {
         this.tradeService = tradeService;
         this.marketStream = marketStream;
         this.ordersService = ordersService;
         this.baseTradeService = baseTradeService;
+        this.lottoTradeService = lottoTradeService;
     }
 
     public record CancelTradeRequest(String orderId) {}
@@ -46,6 +50,7 @@ public class TradeController {
         try {
             switch (riskType) {
                 case BASE -> baseTradeService.placeFill(buyData);
+                case LOTTO -> lottoTradeService.placeFill(buyData);
             }
 
             marketStream.stopAllStreams();

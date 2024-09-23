@@ -23,7 +23,7 @@ public class Convert {
 
     public static Long getMomentAsCode() {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/New_York"));
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HHmmMMddyyyy");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("ddMMHHmmyyyy");
         return Long.valueOf(now.format(formatter));
     }
 

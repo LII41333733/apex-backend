@@ -55,8 +55,7 @@ public class MarketService {
     public List<QuoteData> getOptionsChain(String symbol, String optionType) throws IOException, URISyntaxException {
         Map<String, String> queryParams = new HashMap<>();
         queryParams.put("symbol", symbol);
-//        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ")));
-        queryParams.put("expiration", getNextExpiration(false));
+        queryParams.put("expiration", getNextExpiration(symbol.equals("SPY") || symbol.equals("QQQ") || symbol.equals("IWM")));
         String response = ApiRequest.get(getBaseApi() + "/options/chains", queryParams);
         ObjectMapper objectMapper = new ObjectMapper();
         JsonNode optionsNode = objectMapper.readTree(response).path("options");

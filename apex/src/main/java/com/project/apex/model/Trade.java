@@ -1,10 +1,17 @@
 package com.project.apex.model;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.project.apex.data.trades.TradeStatus;
+import com.project.apex.util.TradeOrder;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-@MappedSuperclass  // This class has no table but its properties will be inherited
+import static com.project.apex.data.trades.TradeStatus.*;
+import static com.project.apex.data.trades.TradeStatus.FINALIZED;
+
+@MappedSuperclass
 public abstract class Trade {
+
     @Id
     @Column(name = "id")
     private Long id;
@@ -14,10 +21,12 @@ public abstract class Trade {
     private Double postTradeBalance;
     @Column(name = "option_symbol", length = 25)
     private String optionSymbol;
-    @Column(name = "symbol", length = 3)
+    @Column(name = "symbol", length = 25)
     private String symbol;
     @Column(name = "fill_price")
     private Double fillPrice;
+    @Column(name = "initial_ask")
+    private Double initialAsk;
     @Column(name = "open_date")
     private LocalDateTime openDate;
     @Column(name = "close_date")
@@ -27,11 +36,61 @@ public abstract class Trade {
     @Column(name = "quantity")
     private Integer quantity;
     @Column(name = "pl")
-    private Integer pl;
+    private Integer pl = 0;
     @Column(name = "trade_amount")
     private Integer tradeAmount;
     @Column(name = "last_price")
     private Double lastPrice;
+    @Column(name = "final_amount")
+    private Integer finalAmount = 0;
+    @Enumerated(EnumType.ORDINAL)
+    @Column(name = "status")
+    private TradeStatus status = NEW;
+
+    public Trade() {}
+
+    public Trade(Long id, double totalEquity, double initialAsk, int quantity) {
+        this.setId(id);
+        this.setPreTradeBalance(totalEquity);
+        this.setInitialAsk(initialAsk);
+        this.setFillPrice(initialAsk);
+        this.setQuantity(quantity);
+    }
+
+    public void initializeTrade(JsonNode fillOrder) {
+        this.setFillPrice(
+                TradeOrder.isOpen(fillOrder)
+                    ? TradeOrder.getPrice(fillOrder)
+                    : TradeOrder.getAverageFillPrice(fillOrder)
+        );
+        this.setOpenDate(TradeOrder.getCreateDate(fillOrder));
+        this.setOptionSymbol(TradeOrder.getOptionSymbol(fillOrder));
+        this.setSymbol(TradeOrder.getSymbol(fillOrder));
+    }
+
+    public boolean isPending() {
+        return this.getStatus() == PENDING;
+    }
+
+    public boolean isNew() {
+        return this.getStatus() == NEW;
+    }
+
+    public boolean isOpen() {
+        return this.getStatus() == OPEN;
+    }
+
+    public boolean hasRunners() {
+        return this.getStatus() == RUNNERS;
+    }
+
+    public boolean isFilled() {
+        return this.getStatus() == FILLED;
+    }
+
+    public boolean isFinalized() {
+        return this.getStatus() == FINALIZED;
+    }
 
     public Long getId() {
         return id;
@@ -135,5 +194,29 @@ public abstract class Trade {
 
     public void setLastPrice(Double lastPrice) {
         this.lastPrice = lastPrice;
+    }
+
+    public Integer getFinalAmount() {
+        return finalAmount;
+    }
+
+    public void setFinalAmount(Integer finalAmount) {
+        this.finalAmount = finalAmount;
+    }
+
+    public Double getInitialAsk() {
+        return initialAsk;
+    }
+
+    public void setInitialAsk(Double initialAsk) {
+        this.initialAsk = initialAsk;
+    }
+
+    public TradeStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(TradeStatus status) {
+        this.status = status;
     }
 }

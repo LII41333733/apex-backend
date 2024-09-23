@@ -3,12 +3,10 @@ package com.project.apex.model;
 import com.project.apex.data.trades.RiskType;
 import jakarta.persistence.*;
 
-@Entity
-@DiscriminatorValue("OTOCO_TRADE")
 public class OtocoTrade extends Trade {
 
     @Id
-    @Column(name = "order_id")
+    @Column(name = "id")
     private Integer orderId;
 
     @Enumerated(EnumType.STRING)
@@ -32,6 +30,14 @@ public class OtocoTrade extends Trade {
 
     @Column(name = "recovery_id", length = 45)
     private Integer recoveryId;
+
+    public OtocoTrade(Long id, double totalEquity, double initialAsk, int quantity) {
+        super(id, totalEquity, initialAsk, quantity);
+    }
+
+    public OtocoTrade() {
+
+    }
 
     public double getLimitPrice() {
         return limitPrice;

@@ -1,19 +1,15 @@
 package com.project.apex.model;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.project.apex.data.trades.BaseTrade.BaseTradeStatus;
 import com.project.apex.data.trades.RiskType;
-import com.project.apex.util.BaseTradeOrder;
 import com.project.apex.util.Quantities;
 import com.project.apex.util.Record;
 import jakarta.persistence.*;
 
 import java.util.List;
 
-import static com.project.apex.data.trades.BaseTrade.BaseTradeStatus.NEW;
+import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.data.trades.RiskType.BASE;
-import static com.project.apex.util.BaseTradeOrder.*;
-import static com.project.apex.util.BaseTradeOrder.getSymbol;
 import static com.project.apex.util.Convert.roundedDouble;
 
 @Entity
@@ -24,13 +20,11 @@ public class BaseTrade extends Trade {
     public static final double stopLossPercentage = 0.40;
     public static final double trim1Percentage = 0.25;
     public static final double trim2Percentage = 0.50;
-    public static final double trim3Percentage = 0.75;
+    final double initialRunnersFloorModifier = 1.25;
 
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "risk_type")
     private RiskType riskType = BASE;
-    @Column(name = "initial_ask")
-    private Double initialAsk;
     @Column(name = "trim1_price")
     private Double trim1Price;
     @Column(name = "trim1_quantity")
@@ -49,37 +43,34 @@ public class BaseTrade extends Trade {
     private Double stopPrice;
     @Column(name = "trim_status")
     private byte trimStatus = 0;
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "status")
-    private BaseTradeStatus status = NEW;
+    @Column(name = "trim1_price_final")
+    private Double trim1PriceFinal = 0.0;
+    @Column(name = "trim2_price_final")
+    private Double trim2PriceFinal = 0.0;
+    @Column(name = "stop_price_final")
+    private Double stopPriceFinal = 0.0;
 
     public BaseTrade() {}
 
     public BaseTrade(Long id, double totalEquity, double initialAsk, int quantity) {
-        this.setId(id);
-        this.setPreTradeBalance(totalEquity);
-        this.setInitialAsk(initialAsk);
-        this.setFillPrice(initialAsk);
-        this.setQuantity(quantity);
+        super(id, totalEquity, initialAsk, quantity);
         calculateStopsAndTrims();
     }
 
     public void initializeTrade(JsonNode fillOrder) {
-        this.setFillPrice(BaseTradeOrder.getPrice(fillOrder));
-        this.setOpenDate(BaseTradeOrder.getCreateDate(fillOrder));
-        this.setOptionSymbol(BaseTradeOrder.getOptionSymbol(fillOrder));
-        this.setSymbol(BaseTradeOrder.getSymbol(fillOrder));
+        super.initializeTrade(fillOrder);
         this.calculateStopsAndTrims();
     }
 
     public void calculateStopsAndTrims() {
         List<Integer> quantities = Quantities.divideIntoThreeGroups(this.getQuantity());
-        Integer trim1Quantity = quantities.get(0);
-        Integer trim2Quantity = quantities.get(1);
-        Integer runnersQuantity = quantities.get(2);
+        int trim1Quantity = quantities.get(0);
+        int trim2Quantity = quantities.get(1);
+        int runnersQuantity = quantities.get(2);
         double ask = this.getFillPrice();
 
         if (this.getFillPrice() <= .1) {
+            // LOTTOS ONLY!!!!!
             double initialRunnersFloorPrice = .13;
             this.setStopPrice(roundedDouble(ask / 2));
             this.setTrim1Price(this.getStopPrice() + .11);
@@ -90,7 +81,7 @@ public class BaseTrade extends Trade {
             double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
             double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
             double trim2Price = roundedDouble(ask * (1 + trim2Percentage));
-            double initialRunnersFloorPrice = roundedDouble(trim2Price / 2);
+            double initialRunnersFloorPrice = roundedDouble(trim2Price / initialRunnersFloorModifier);
             this.setStopPrice(stopPrice);
             this.setTrim1Price(trim1Price);
             this.setTrim2Price(trim2Price);
@@ -177,14 +168,6 @@ public class BaseTrade extends Trade {
         this.trimStatus = trimStatus;
     }
 
-    public BaseTradeStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(BaseTradeStatus status) {
-        this.status = status;
-    }
-
     public Double getRunnersDelta() {
         return runnersDelta;
     }
@@ -193,11 +176,27 @@ public class BaseTrade extends Trade {
         this.runnersDelta = runnersDelta;
     }
 
-    public Double getInitialAsk() {
-        return initialAsk;
+    public Double getTrim1PriceFinal() {
+        return trim1PriceFinal;
     }
 
-    public void setInitialAsk(Double initialAsk) {
-        this.initialAsk = initialAsk;
+    public void setTrim1PriceFinal(Double trim1PriceFinal) {
+        this.trim1PriceFinal = trim1PriceFinal;
+    }
+
+    public Double getStopPriceFinal() {
+        return stopPriceFinal;
+    }
+
+    public void setStopPriceFinal(Double stopPriceFinal) {
+        this.stopPriceFinal = stopPriceFinal;
+    }
+
+    public Double getTrim2PriceFinal() {
+        return trim2PriceFinal;
+    }
+
+    public void setTrim2PriceFinal(Double trim2PriceFinal) {
+        this.trim2PriceFinal = trim2PriceFinal;
     }
 }

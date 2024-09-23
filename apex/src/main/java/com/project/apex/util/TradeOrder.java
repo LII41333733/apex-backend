@@ -7,7 +7,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
-public class BaseTradeOrder {
+public class TradeOrder {
 
     public static Integer getId(JsonNode order) {
         return order.get("id").asInt();
@@ -55,6 +55,14 @@ public class BaseTradeOrder {
 
     public static double getPrice(JsonNode order) {
         return order.get("price").asDouble();
+    }
+
+    public static double getAverageFillPrice(JsonNode order) {
+        return order.get("avg_fill_price").asDouble();
+    }
+
+    public static double getAvgFillPrice(JsonNode order) {
+        return order.get("avg_fill_price").asDouble();
     }
 
     public static int getQuantity(JsonNode order) {
