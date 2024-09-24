@@ -105,8 +105,8 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 3000)
 //    @Scheduled(fixedRate = 3000)
+    @Scheduled(fixedRate = 5000)
     public void fetchOrdersScheduleActive() {
         if (!sessions.isEmpty()) {
             try {
@@ -117,13 +117,6 @@ public class ClientWebSocket extends TextWebSocketHandler {
             } catch (Exception e) {
                 logger.error("Failed to fetch orders", e);
             }
-        }
-    }
-
-    @Scheduled(fixedRate = 5000)
-    public void fetchOrdersSchedule() {
-        if (sessions.isEmpty()) {
-            ordersService.fetchOrders();
         }
     }
 

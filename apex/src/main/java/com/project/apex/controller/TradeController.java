@@ -2,6 +2,8 @@ package com.project.apex.controller;
 
 import com.project.apex.component.MarketStream;
 import com.project.apex.data.trades.BuyData;
+import com.project.apex.data.trades.CancelTradeRecord;
+import com.project.apex.data.trades.ModifyTradeRecord;
 import com.project.apex.data.trades.RiskType;
 import com.project.apex.service.BaseTradeService;
 import com.project.apex.service.LottoTradeService;
@@ -22,24 +24,19 @@ public class TradeController {
     private static final Logger logger = LoggerFactory.getLogger(TradeController.class);
     private final TradeService tradeService;
     private final MarketStream marketStream;
-    private final OrdersService ordersService;
-    private final BaseTradeService baseTradeService;
-    private final LottoTradeService lottoTradeService;
+//    private final BaseTradeService baseTradeService;
+//    private final LottoTradeService lottoTradeService;
 
     @Autowired
     public TradeController(TradeService tradeService,
                            MarketStream marketStream,
-                           OrdersService ordersService,
                            BaseTradeService baseTradeService,
                            LottoTradeService lottoTradeService) {
         this.tradeService = tradeService;
         this.marketStream = marketStream;
-        this.ordersService = ordersService;
-        this.baseTradeService = baseTradeService;
-        this.lottoTradeService = lottoTradeService;
+//        this.baseTradeService = baseTradeService;
+//        this.lottoTradeService = lottoTradeService;
     }
-
-    public record CancelTradeRequest(String orderId) {}
 
     @PostMapping("/placeTrade")
     public ResponseEntity<?> placeTrade(@RequestBody BuyData buyData) {
@@ -63,10 +60,31 @@ public class TradeController {
     }
 
     @PostMapping("/cancelTrade")
-    public ResponseEntity<?> cancelTrade(@RequestBody CancelTradeRequest request) throws IOException {
+    public ResponseEntity<?> cancelTrade(@RequestBody CancelTradeRecord request) {
         try {
-            tradeService.cancelTrade(request.orderId());
-            ordersService.fetchOrders();
+            tradeService.cancelTrade(request.id());
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Cancel Trade Exception", e);
+            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/modifyTrade")
+    public ResponseEntity<?> modifyTrade(@RequestBody ModifyTradeRecord request) {
+        try {
+            tradeService.modifyTrade(request);
+            return new ResponseEntity<>(HttpStatus.OK);
+        } catch (Exception e) {
+            logger.error("Cancel Trade Exception", e);
+            return new ResponseEntity<>(e, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    @PostMapping("/sellTrade")
+    public ResponseEntity<?> sellTrade(@RequestBody ModifyTradeRecord request) {
+        try {
+            tradeService.modifyTrade(request);
             return new ResponseEntity<>(HttpStatus.OK);
         } catch (Exception e) {
             logger.error("Cancel Trade Exception", e);

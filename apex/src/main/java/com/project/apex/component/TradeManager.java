@@ -2,9 +2,10 @@ package com.project.apex.component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.data.trades.*;
+import com.project.apex.model.LottoTrade;
 import com.project.apex.model.Trade;
-import com.project.apex.service.MarketService;
 import com.project.apex.util.Record;
+import com.project.apex.util.TradeOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -15,22 +16,20 @@ import static com.project.apex.data.trades.TradeLeg.*;
 import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.util.TradeOrder.*;
 
-public abstract class TradeManager<T extends Trade, R extends JpaRepository<T, Long>, S extends TradeManagerInterface<T>> {
+public class TradeManager<T extends Trade, R extends JpaRepository<T, Long>, S extends TradeManagerInterface<T>> {
 
     private static final Logger logger = LoggerFactory.getLogger(TradeManager.class);
     protected final R tradeRepository;
     protected final S tradeService;
-    protected final MarketService marketService;
     private final Map<Long, T> allTrades = new HashMap<>();
     private final List<Long> pendingTrades = new ArrayList<>();
     private final List<Long> openTrades = new ArrayList<>();
-    final List<Long> runnerTrades = new ArrayList<>();
+    public final List<Long> runnerTrades = new ArrayList<>();
     private final List<Long> filledTrades = new ArrayList<>();
     private final List<Long> canceledTrades = new ArrayList<>();
     private final List<Long> rejectedTrades = new ArrayList<>();
 
-    public TradeManager(S tradeService, R tradeRepository, MarketService marketService) {
-        this.marketService = marketService;
+    public TradeManager(R tradeRepository, S tradeService) {
         this.tradeRepository = tradeRepository;
         this.tradeService = tradeService;
     }
@@ -60,9 +59,15 @@ public abstract class TradeManager<T extends Trade, R extends JpaRepository<T, L
                 if (tradeOpt.isPresent()) {
                     T trade = tradeOpt.get();
                     JsonNode fillOrder = tradeLegMap.get(FILL);
+                    JsonNode stopOrder = tradeLegMap.get(STOP);
                     boolean hasFillOrder = fillOrder != null;
+                    boolean hasStopOrder = stopOrder != null;
 
                     if (hasFillOrder) {
+                        if (trade.getFillOrderId() == null) {
+                            trade.setFillOrderId(fillOrder.get("id").asLong());
+                        }
+
                         if (trade.isNew()) {
                             logger.info("TradeManager.watch: {}: Initializing Trade (NEW): {}", riskType, id);
                             trade.initializeTrade(fillOrder);
@@ -80,6 +85,8 @@ public abstract class TradeManager<T extends Trade, R extends JpaRepository<T, L
                             } else if (isCanceled(fillOrder)) {
                                 canceledTrades.add(id);
                                 logger.info("TradeManager.watch: {}: Order Canceled: {}", riskType, id);
+                                trade.setStatus(CANCELED);
+                                logger.info("TradeManager.watch: {}: (PENDING -> CANCELED): {}", riskType, id);
                             } else if (isRejected(fillOrder)) {
                                 rejectedTrades.add(id);
                                 logger.info("TradeManager.watch: {}: Order Rejected: {}", riskType, id);
@@ -99,18 +106,15 @@ public abstract class TradeManager<T extends Trade, R extends JpaRepository<T, L
 
                                     if (lastPrice <= trade.getStopPrice()) {
                                         logger.info("TradeManager.watch: {}: Stop Hit!: {}", riskType, id);
-                                        if (tradeService.placeMarketSell(trade, STOP)) {
-                                            filledTrades.add(id);
+
+                                        if ((hasStopOrder && TradeOrder.isFilled(stopOrder)) || tradeService.placeMarketSell(trade, STOP)) {
                                             trade.setStatus(FILLED);
                                             logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
                                         }
                                     } else {
+                                        tradeService.handleOpenTrades(trade, lastPrice, id, riskType, runnerTrades);
                                         openTrades.add(id);
                                         logger.info("TradeManager.watch: {}: Order Open: {}", riskType, id);
-                                    }
-
-                                    if (trade.isOpen()) {
-                                       handleOpenTrades(trade, lastPrice, id, riskType);
                                     }
                                 }
                             }
@@ -140,5 +144,20 @@ public abstract class TradeManager<T extends Trade, R extends JpaRepository<T, L
         return new TradeRecord<T>(allTrades, pendingTrades, openTrades, runnerTrades, filledTrades, canceledTrades, rejectedTrades);
     }
 
-    public void handleOpenTrades(T trade, double lastPrice, Long id, RiskType riskType) {}
+    public void modifyTrade(ModifyTradeRecord request) {
+        Long id = request.id();
+        TradeLeg tradeLeg = request.tradeLeg();
+        double price = request.price();
+        Optional<T> tradeOpt = this.tradeRepository.findById(id);
+
+        if (tradeOpt.isPresent()) {
+            T trade = tradeOpt.get();
+            switch (tradeLeg) {
+                case STOP -> trade.setStopPrice(price);
+                case TRIM1 -> trade.setTrim1Price(price);
+                case TRIM2 -> trade.setTrim2Price(price);
+            }
+            this.tradeRepository.save(trade);
+        }
+    }
 }

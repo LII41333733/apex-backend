@@ -30,13 +30,15 @@ public class BaseTrade extends Trade {
 
     public BaseTrade() {}
 
-    public BaseTrade(Long id, double totalEquity, double initialAsk, int quantity) {
-        super(id, totalEquity, initialAsk, quantity);
+    public BaseTrade(Long id, double totalEquity, double initialAsk, int quantity, Long fillOrderId) {
+        super(id, totalEquity, initialAsk, quantity, fillOrderId);
         calculateStopsAndTrims();
     }
 
     @Override
     public void calculateStopsAndTrims() {
+        System.out.println("hello");
+
         List<Integer> quantities = Quantities.divideIntoThreeGroups(this.getQuantity());
         int trim1Quantity = quantities.get(0);
         int trim2Quantity = quantities.get(1);

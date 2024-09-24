@@ -1,11 +1,13 @@
 package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.project.apex.component.BaseTradeManager;
 import com.project.apex.component.TradeManagerInterface;
 import com.project.apex.config.EnvConfig;
 import com.project.apex.data.account.Balance;
 import com.project.apex.data.orders.OrderFillRecord;
 import com.project.apex.data.trades.BuyData;
+import com.project.apex.data.trades.RiskType;
 import com.project.apex.data.trades.TradeLeg;
 import com.project.apex.data.trades.TradeLegMap;
 import com.project.apex.model.BaseTrade;
@@ -20,6 +22,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.*;
+import static com.project.apex.data.trades.TradeStatus.RUNNERS;
+import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
 @Service
@@ -94,7 +98,8 @@ public class BaseTradeService implements TradeManagerInterface<BaseTrade> {
 
                 if (isOk(jsonNode)) {
                     logger.info("BaseTradeService.placeFill: Fill Successful: {}", id);
-                    BaseTrade trade = new BaseTrade(id, totalEquity, ask, quantity);
+                    Long orderId = jsonNode.get("id").asLong();
+                    BaseTrade trade = new BaseTrade(id, totalEquity, ask, quantity, orderId);
                     baseTradeRepository.save(trade);
                 } else {
                     logger.error("BaseTradeService.placeFill: Fill UnSuccessful: {}", id);
@@ -196,4 +201,31 @@ public class BaseTradeService implements TradeManagerInterface<BaseTrade> {
         trade.setPostTradeBalance(trade.getPreTradeBalance() + trade.getPl());
     }
 
+    public void handleOpenTrades(BaseTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
+        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
+            trade.setTrimStatus((byte) 1);
+            logger.info("BaseTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
+            placeMarketSell(trade, TRIM1);
+        }
+
+        if (trade.getTrimStatus() < 2 && (lastPrice >= trade.getTrim2Price())) {
+            trade.setTrimStatus((byte) 2);
+            logger.info("BaseTradeManager.watch: {}: Trim 2 Hit! Moving Stops: {}", riskType, id);
+            placeMarketSell(trade, TRIM2);
+            trade.setStopPrice(trade.getRunnersFloorPrice());
+            trade.setStatus(RUNNERS);
+            logger.info("BaseTradeManager.watch: {}: (OPEN -> RUNNERS): {}", riskType, id);
+        }
+
+        if (trade.getTrimStatus() > 1) {
+            runnerTrades.add(id);
+            logger.info("BaseTradeManager.watch: {}: Last Price: {}", riskType, lastPrice);
+            logger.info("BaseTradeManager.watch: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());
+            if (lastPrice > (trade.getStopPrice() + trade.getRunnersDelta())) {
+                double newFloor = roundedDouble(lastPrice - trade.getRunnersDelta());
+                logger.info("BaseTradeManager.watch: {}: New Floor: {}", riskType, newFloor);
+                trade.setStopPrice(newFloor);
+            }
+        }
+    }
 }

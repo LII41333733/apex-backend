@@ -88,6 +88,22 @@ public class AccountService {
         }
     }
 
+    public JsonNode delete(String url) throws IOException {
+        logger.info("AccountService.delete: Start: Url: {}", getBaseApi() + url);
+
+        try {
+            RequestBuilder request = addHeaders(RequestBuilder.delete(getBaseApi() + url), envConfig);
+            HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
+            return getParsedResponse(response);
+        } catch (IOException e) {
+            logger.error("AccountService.delete: ERROR: IOException:", e);
+            throw e;
+        } catch (Exception e) {
+            logger.error("AccountService.delete: ERROR: Exception: {}", e.getMessage(), e);
+            throw new IOException(e);
+        }
+    }
+
     public Balance getBalanceData() throws IOException {
         logger.debug("AccountService.getBalanceData: Retrieving balance data");
         Balance balance = new Balance();

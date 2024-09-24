@@ -1,14 +1,14 @@
 package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.project.apex.component.LottoTradeManager;
 import com.project.apex.component.TradeManagerInterface;
 import com.project.apex.config.EnvConfig;
 import com.project.apex.data.account.Balance;
 import com.project.apex.data.orders.OrderFillRecord;
-import com.project.apex.data.trades.BuyData;
-import com.project.apex.data.trades.TradeLeg;
-import com.project.apex.data.trades.TradeLegMap;
+import com.project.apex.data.trades.*;
 import com.project.apex.model.LottoTrade;
+import com.project.apex.model.Trade;
 import com.project.apex.repository.LottoTradeRepository;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
@@ -23,6 +23,8 @@ import java.util.*;
 
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeLeg.TRIM1;
+import static com.project.apex.data.trades.TradeStatus.RUNNERS;
+import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
 @Service
@@ -97,7 +99,8 @@ public class LottoTradeService implements TradeManagerInterface<LottoTrade> {
 
                 if (isOk(jsonNode)) {
                     logger.info("LottoTradeService.placeFill: Fill Successful: {}", id);
-                    LottoTrade trade = new LottoTrade(id, totalEquity, ask, quantity);
+                    Long orderId = jsonNode.get("id").asLong();
+                    LottoTrade trade = new LottoTrade(id, totalEquity, ask, quantity, orderId);
                     lottoTradeRepository.save(trade);
                 } else {
                     logger.error("LottoTradeService.placeFill: Fill UnSuccessful: {}", id);
@@ -186,6 +189,28 @@ public class LottoTradeService implements TradeManagerInterface<LottoTrade> {
         trade.setCloseDate(getCloseDate(stop));
         trade.setPl(trade.getFinalAmount() - trade.getTradeAmount());
         trade.setPostTradeBalance(trade.getPreTradeBalance() + trade.getPl());
+    }
+
+    public void handleOpenTrades(LottoTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
+        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
+            trade.setTrimStatus((byte) 1);
+            logger.info("LottoTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
+            placeMarketSell(trade, TRIM1);
+            trade.setStopPrice(trade.getRunnersFloorPrice());
+            trade.setStatus(RUNNERS);
+            logger.info("LottoTradeManager.watch: {}: (OPEN -> RUNNERS): {}", riskType, id);
+        }
+
+        if (trade.getTrimStatus() > 0) {
+            runnerTrades.add(id);
+            logger.info("LottoTradeManager.watch: {}: Last Price: {}", riskType, lastPrice);
+            logger.info("LottoTradeManager.watch: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());
+            if (lastPrice > (trade.getStopPrice() + trade.getRunnersDelta())) {
+                double newFloor = roundedDouble(lastPrice - trade.getRunnersDelta());
+                logger.info("LottoTradeManager.watch: {}: New Floor: {}", riskType, newFloor);
+                trade.setStopPrice(newFloor);
+            }
+        }
     }
 
 }

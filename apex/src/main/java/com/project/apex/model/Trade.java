@@ -15,6 +15,8 @@ public class Trade {
     @Id
     @Column(name = "id")
     private Long id;
+    @Column(name = "fill_order_id")
+    private Long fillOrderId;
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "riskType")
     private RiskType riskType;
@@ -72,19 +74,20 @@ public class Trade {
 
     public Trade() {}
 
-    public Trade(Long id, double totalEquity, double initialAsk, int quantity) {
+    public Trade(Long id, double totalEquity, double initialAsk, int quantity, Long fillOrderId) {
         this.setId(id);
         this.setPreTradeBalance(totalEquity);
         this.setInitialAsk(initialAsk);
         this.setFillPrice(initialAsk);
         this.setQuantity(quantity);
+        this.setFillOrderId(fillOrderId);
     }
 
     public void initializeTrade(JsonNode fillOrder) {
         this.setFillPrice(
-                TradeOrder.isOpen(fillOrder)
-                    ? TradeOrder.getPrice(fillOrder)
-                    : TradeOrder.getAverageFillPrice(fillOrder)
+                TradeOrder.isFilled(fillOrder)
+                    ? TradeOrder.getAverageFillPrice(fillOrder)
+                    : TradeOrder.getPrice(fillOrder)
         );
         this.setOpenDate(TradeOrder.getCreateDate(fillOrder));
         this.setOptionSymbol(TradeOrder.getOptionSymbol(fillOrder));
@@ -92,7 +95,9 @@ public class Trade {
         this.calculateStopsAndTrims();
     }
 
-    public void calculateStopsAndTrims() {};
+    public void calculateStopsAndTrims() {
+        System.out.println("hello");
+    };
 
     public boolean isPending() {
         return this.getStatus() == PENDING;
@@ -329,4 +334,13 @@ public class Trade {
     public void setStopPriceFinal(Double stopPriceFinal) {
         this.stopPriceFinal = stopPriceFinal;
     }
+
+    public Long getFillOrderId() {
+        return fillOrderId;
+    }
+
+    public void setFillOrderId(Long fillOrderId) {
+        this.fillOrderId = fillOrderId;
+    }
+
 }

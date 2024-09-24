@@ -32,9 +32,7 @@ public class OrdersService {
     @Autowired
     public OrdersService(
             AccountService accountService,
-            @Lazy ClientWebSocket clientWebSocket,
-            BaseTradeManager baseTradeManager,
-            LottoTradeManager lottoTradeManager) {
+            @Lazy ClientWebSocket clientWebSocket, BaseTradeManager baseTradeManager, LottoTradeManager lottoTradeManager) {
         this.accountService = accountService;
         this.clientWebSocket = clientWebSocket;
         this.baseTradeManager = baseTradeManager;
@@ -80,10 +78,23 @@ public class OrdersService {
                 Long id = Long.valueOf(split[1]);
                 TradeLeg tradeLeg = TradeLeg.valueOf(split[2]);
 
-                ordersByRiskType
-                    .computeIfAbsent(riskType, e -> new TradeMap())
-                    .computeIfAbsent(id, e -> new TradeLegMap())
-                    .put(tradeLeg, orderJson);
+                TradeMap tradeMap = ordersByRiskType.get(riskType);
+
+                if (tradeMap == null) {
+                    tradeMap = new TradeMap();
+                    ordersByRiskType.put(riskType, tradeMap);
+                }
+
+                TradeLegMap tradeLegMap = tradeMap.get(id);
+
+                if (tradeLegMap == null) {
+                    tradeLegMap = new TradeLegMap();
+                    tradeMap.put(id, tradeLegMap);
+                }
+
+                if (!tradeLegMap.containsKey(tradeLeg)) {
+                    tradeLegMap.put(tradeLeg, orderJson);
+                }
             }
         };
 

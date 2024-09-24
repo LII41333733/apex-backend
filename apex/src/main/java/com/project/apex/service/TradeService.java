@@ -1,10 +1,19 @@
 package com.project.apex.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.config.EnvConfig;
+import com.project.apex.data.account.Balance;
+import com.project.apex.data.orders.OrderFillRecord;
 import com.project.apex.data.trades.BuyData;
+import com.project.apex.data.trades.ModifyTradeRecord;
 import com.project.apex.data.trades.RiskType;
+import com.project.apex.data.trades.TradeLeg;
 import com.project.apex.model.BaseTrade;
+import com.project.apex.model.LottoTrade;
+import com.project.apex.model.Trade;
 import com.project.apex.repository.BaseTradeRepository;
+import com.project.apex.util.Convert;
+import com.project.apex.util.Record;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
@@ -18,65 +27,110 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.*;
 
+import static com.project.apex.util.TradeOrder.isOk;
+
 @Service
-public class TradeService {
+public class TradeService<R> {
 
     private static final Logger logger = LoggerFactory.getLogger(TradeService.class);
     protected final EnvConfig envConfig;
-    private final MarketService marketService;
     private final AccountService accountService;
-    private final BaseTradeRepository baseTradeRepository;
-    private final BaseTradeService baseTradeService;
 
     @Autowired
     public TradeService(EnvConfig envConfig,
-                        MarketService marketService,
                         AccountService accountService,
-                        BaseTradeRepository baseTradeRepository,
-                        BaseTradeService baseTradeService) {
+                        BaseTradeRepository baseTradeRepository) {
         this.envConfig = envConfig;
-        this.marketService = marketService;
         this.accountService = accountService;
-        this.baseTradeRepository = baseTradeRepository;
-        this.baseTradeService = baseTradeService;
     }
+
 
     public List<BaseTrade> fetchTrades() {
         return baseTradeRepository.findAll();
     }
 
-    public void cancelTrade(String orderId) throws IOException {
-        String url = envConfig.getApiEndpoint() + "/v1/accounts/" + envConfig.getClientId() + "/orders/" + orderId;
-        System.out.println(url);
-        System.out.println(url);
-        HttpUriRequest request = RequestBuilder
-                .delete(url)
-                .addHeader("Authorization", "Bearer " + envConfig.getClientSecret())
-                .addHeader("Accept", "application/json")
-                .build();
-
-        final HttpResponse response = HttpClientBuilder.create().build().execute(request);
-        String responseBody = EntityUtils.toString(response.getEntity());
-        System.out.println(responseBody);
+    public void cancelTrade(String id) throws IOException {
+        JsonNode response = accountService.delete("/orders/" + id);
+        System.out.println(response);
     }
 
-    public void placeTrade(BuyData buyData) {
+    public void placeFill(BuyData buyData) {
         try {
-            switch (RiskType.valueOf(buyData.getRiskType())) {
-                case LOTTO -> handleLottoTrade(buyData);
-                case OTOCO -> handleOtocoTrade(buyData);
-            };
+            Long id = Convert.getMomentAsCode();
+            logger.info("LottoTradeService.placeFill: Start: {}", id);
+            Balance balance = accountService.getBalanceData();
+            double totalEquity = balance.getTotalEquity();
+            logger.info("Total Equity: {}", totalEquity);
+            double totalCash = balance.getTotalCash();
+            logger.info("Total Cash: {}", totalCash);
+            int tradeAllotment = (int) Math.floor(totalEquity * LottoTrade.tradePercentModifier);
+            logger.info("Trade Allotment: {}", tradeAllotment);
+            logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
+            if (tradeAllotment < totalCash) {
+                double ask = buyData.getPrice();
+                logger.info("Ask: {}", ask);
+                double contractCost = ask * 100;
+                logger.info("Contract Cost: {}", contractCost);
+                int quantity = (int) Math.floor(tradeAllotment /contractCost);
+                logger.info("Quantity: {}", quantity);
+                Map<String, String> parameters = new HashMap<>();
+                parameters.put("class", "option");
+                parameters.put("duration", "day");
+                parameters.put("quantity", String.valueOf(quantity));
+                parameters.put("side", "buy_to_open");
+                parameters.put("option_symbol", buyData.getOption());
+                parameters.put("price", String.valueOf(ask));
+                parameters.put("type", "limit");
+                parameters.put("tag", buyData.getRiskType().toUpperCase() + "-" + id + "-" +  TradeLeg.FILL);
+
+                new Record<>("LottoTradeService.placeFill: Fill Parameters", new OrderFillRecord(
+                        id,
+                        totalEquity,
+                        totalCash,
+                        tradeAllotment,
+                        buyData.getPrice(),
+                        contractCost,
+                        quantity,
+                        parameters
+                ));
+
+                JsonNode json = accountService.post("/orders", parameters);
+                JsonNode jsonNode = json.get("order");
+
+                if (isOk(jsonNode)) {
+                    logger.info("LottoTradeService.placeFill: Fill Successful: {}", id);
+                    Long orderId = jsonNode.get("id").asLong();
+                    LottoTrade trade = new LottoTrade(id, totalEquity, ask, quantity, orderId);
+                    lottoTradeRepository.save(trade);
+                } else {
+                    logger.error("LottoTradeService.placeFill: Fill UnSuccessful: {}", id);
+                }
+            } else {
+                logger.error("LottoTradeService.placeFill: Not enough cash available to make trade: {}", id);
+            }
         } catch (Exception e) {
-            logger.error("placeTrade", e);
+            logger.error("LottoTradeService.placeFill: ERROR: Exception", e);
         }
     }
 
-    public String handleLottoTrade(BuyData buyData) {
-        return "";
-    }
-    public String handleOtocoTrade(BuyData buyData) {
-        return "";
-    }
+//    public void modifyStopOrder(Integer orderId, Double newPrice, BaseTrade trade) {
+//        logger.info("BaseTradeService.modifyStopOrder: Start: ID: {} Order ID: {} New Price: {}", trade.getId(), orderId, newPrice);
+//        try {
+//            Map<String, String> parameters = new HashMap<>();
+//            parameters.put("stop[0]", newPrice.toString());
+//            parameters.put("limit[0]", newPrice.toString());
+//
+//            JsonNode response = accountService.put("/orders/" + orderId, parameters);
+//
+//            if (isOk(response)) {
+//                logger.info("BaseTradeService.modifyStopOrder: Modify Stop Successful");
+//            } else {
+//                logger.error("BaseTradeService.modifyStopOrder: Modify Stop UnSuccessful");
+//            }
+//        } catch (Exception e) {
+//            logger.error("BaseTradeService.modifyStopOrder: ERROR: Exception: {}", e.getMessage(), e);
+//        }
+//    }
 
 //    public String handleLottoTrade(BuyData buyData) throws IOException {
 //        Optional<Trade> lastLossTradeEntity = baseTradeRepository.findLastLossTradeWithoutLossId();

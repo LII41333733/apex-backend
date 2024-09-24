@@ -18,43 +18,12 @@ import static com.project.apex.util.Convert.roundedDouble;
 public class BaseTradeManager extends TradeManager<BaseTrade, BaseTradeRepository, BaseTradeService> {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseTradeManager.class);
-    BaseTradeService baseTradeService;
 
     @Autowired
     public BaseTradeManager(
             BaseTradeRepository baseTradeRepository,
-            BaseTradeService baseTradeService,
-            MarketService marketService
+            BaseTradeService baseTradeService
     ) {
-        super(baseTradeService, baseTradeRepository, marketService);
-    }
-
-    @Override
-    public void handleOpenTrades(BaseTrade trade, double lastPrice, Long id, RiskType riskType) {
-        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
-            trade.setTrimStatus((byte) 1);
-            logger.info("BaseTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
-            baseTradeService.placeMarketSell(trade, TRIM1);
-        }
-
-        if (trade.getTrimStatus() < 2 && (lastPrice >= trade.getTrim2Price())) {
-            trade.setTrimStatus((byte) 2);
-            logger.info("BaseTradeManager.watch: {}: Trim 2 Hit! Moving Stops: {}", riskType, id);
-            baseTradeService.placeMarketSell(trade, TRIM2);
-            trade.setStopPrice(trade.getRunnersFloorPrice());
-            trade.setStatus(RUNNERS);
-            logger.info("BaseTradeManager.watch: {}: (OPEN -> RUNNERS): {}", riskType, id);
-        }
-
-        if (trade.getTrimStatus() > 1) {
-            runnerTrades.add(id);
-            logger.info("BaseTradeManager.watch: {}: Last Price: {}", riskType, lastPrice);
-            logger.info("BaseTradeManager.watch: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());
-            if (lastPrice > (trade.getStopPrice() + trade.getRunnersDelta())) {
-                double newFloor = roundedDouble(lastPrice - trade.getRunnersDelta());
-                logger.info("BaseTradeManager.watch: {}: New Floor: {}", riskType, newFloor);
-                trade.setStopPrice(newFloor);
-            }
-        }
+        super(baseTradeRepository, baseTradeService);
     }
 }

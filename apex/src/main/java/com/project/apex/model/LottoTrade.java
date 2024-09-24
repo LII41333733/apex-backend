@@ -22,8 +22,8 @@ public class LottoTrade extends Trade {
 
     public LottoTrade() {}
 
-    public LottoTrade(Long id, double totalEquity, double initialAsk, int quantity) {
-        super(id, totalEquity, initialAsk, quantity);
+    public LottoTrade(Long id, double totalEquity, double initialAsk, int quantity, Long fillOrderId) {
+        super(id, totalEquity, initialAsk, quantity, fillOrderId);
         calculateStopsAndTrims();
     }
 
