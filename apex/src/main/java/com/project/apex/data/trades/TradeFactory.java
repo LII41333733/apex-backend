@@ -67,9 +67,9 @@ public class TradeFactory {
         tradeService.modifyTrade(modifyTradeRecord, tradeRepository);
     }
 
-    public void watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
+    public TradeRecord<Trade> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
         execute(riskType);
-        tradeService.watch(riskType, tradeMap, tradeRepository);
+        return tradeService.watch(riskType, tradeMap, tradeRepository);
     }
 
     public void finalizeTrade(Trade trade, TradeLegMap tradeLegMap) {

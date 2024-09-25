@@ -5,4 +5,4 @@ import com.project.apex.model.Trade;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface BaseTradeRepository extends TradeRepository<BaseTrade> {}
+public interface BaseTradeRepository extends TradeRepository {}

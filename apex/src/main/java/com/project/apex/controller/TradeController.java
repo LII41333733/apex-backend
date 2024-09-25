@@ -2,18 +2,13 @@ package com.project.apex.controller;
 
 import com.project.apex.component.MarketStream;
 import com.project.apex.data.trades.*;
-import com.project.apex.model.Trade;
 import com.project.apex.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.io.IOException;
-
-import static com.project.apex.data.trades.TradeOperation.PLACE;
 
 @RestController
 @RequestMapping("/api/trade")
