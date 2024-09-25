@@ -1,5 +1,6 @@
 package com.project.apex.component;
 
+import com.project.apex.data.trades.TradeFactory;
 import com.project.apex.service.AccountService;
 import com.project.apex.service.MarketService;
 import com.project.apex.service.OrdersService;
@@ -26,10 +27,10 @@ public class ClientWebSocket extends TextWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientWebSocket.class);
     private final AccountService accountService;
-    private final TradeService tradeService;
     private final OrdersService ordersService;
     private final MarketStream marketStream;
     private final MarketService marketService;
+    private final TradeFactory tradeFactory;
 
     // A thread-safe list to store all active WebSocket sessions
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
@@ -37,15 +38,15 @@ public class ClientWebSocket extends TextWebSocketHandler {
     @Autowired
     public ClientWebSocket(
             AccountService accountService,
-           TradeService tradeService,
            MarketStream marketStream,
            @Lazy OrdersService ordersService,
-           MarketService marketService) {
+           MarketService marketService,
+            TradeFactory tradeFactory) {
         this.accountService = accountService;
-        this.tradeService = tradeService;
         this.ordersService = ordersService;
         this.marketStream = marketStream;
         this.marketService = marketService;
+        this.tradeFactory = tradeFactory;
     }
 
     @Override
@@ -53,7 +54,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         logger.info("WebSocket connection established: " + session.getId());
         sessions.add(session);
         sendData(new Record<>("balance", accountService.getBalanceData()));
-        sendData(new Record<>("trades", tradeService.fetchTrades()));
+        sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
         marketService.fetchMarketPrices();
         ordersService.fetchOrders();
     }
@@ -113,7 +114,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
                 ordersService.fetchOrders();
                 marketService.fetchMarketPrices();
                 sendData(new Record<>("balance", accountService.getBalanceData()));
-                sendData(new Record<>("trades", tradeService.fetchTrades()));
+                sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
             } catch (Exception e) {
                 logger.error("Failed to fetch orders", e);
             }

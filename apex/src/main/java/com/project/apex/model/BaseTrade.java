@@ -14,31 +14,20 @@ import static com.project.apex.util.Convert.roundedDouble;
 @Table(name = "base_trade")
 public class BaseTrade extends Trade {
 
-    public static final double tradePercentModifier = 0.042;
-    public static final double stopLossPercentage = 0.40;
-    public static final double trim1Percentage = 0.25;
-    public static final double trim2Percentage = 0.50;
-    final double initialRunnersFloorModifier = 1.25;
+    public final double tradePercentModifier = 0.042;
+    public final double stopLossPercentage = 0.40;
+    public final double trim1Percentage = 0.25;
+    public final double trim2Percentage = 0.50;
+    public final double initialRunnersFloorModifier = 1.25;
 
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "risk_type")
     private final RiskType riskType = BASE;
-    @Column(name = "trim2_quantity")
-    private Integer trim2Quantity;
-    @Column(name = "trim2_price_final")
-    private Double trim2PriceFinal = 0.0;
 
     public BaseTrade() {}
 
-    public BaseTrade(Long id, double totalEquity, double initialAsk, int quantity, Long fillOrderId) {
-        super(id, totalEquity, initialAsk, quantity, fillOrderId);
-        calculateStopsAndTrims();
-    }
-
     @Override
     public void calculateStopsAndTrims() {
-        System.out.println("hello");
-
         List<Integer> quantities = Quantities.divideIntoThreeGroups(this.getQuantity());
         int trim1Quantity = quantities.get(0);
         int trim2Quantity = quantities.get(1);
@@ -46,7 +35,6 @@ public class BaseTrade extends Trade {
         double ask = this.getFillPrice();
 
         if (this.getFillPrice() <= .1) {
-            // LOTTOS ONLY!!!!! Hide on UI
             double initialRunnersFloorPrice = .13;
             this.setStopPrice(roundedDouble(ask / 2));
             this.setTrim1Price(this.getStopPrice() + .11);
@@ -75,20 +63,29 @@ public class BaseTrade extends Trade {
     public RiskType getRiskType() {
         return riskType;
     }
-    public Integer getTrim2Quantity() {
-        return trim2Quantity;
+
+    @Override
+    public double getTradePercentModifier() {
+        return tradePercentModifier;
     }
 
-    public void setTrim2Quantity(Integer trim2Quantity) {
-        this.trim2Quantity = trim2Quantity;
+    @Override
+    public double getStopLossPercentage() {
+        return stopLossPercentage;
     }
 
-    public Double getTrim2PriceFinal() {
-        return trim2PriceFinal;
+    @Override
+    public double getTrim1Percentage() {
+        return trim1Percentage;
     }
 
-    public void setTrim2PriceFinal(Double trim2PriceFinal) {
-        this.trim2PriceFinal = trim2PriceFinal;
+    @Override
+    public double getTrim2Percentage() {
+        return trim2Percentage;
     }
 
+    @Override
+    public double getInitialRunnersFloorModifier() {
+        return initialRunnersFloorModifier;
+    }
 }

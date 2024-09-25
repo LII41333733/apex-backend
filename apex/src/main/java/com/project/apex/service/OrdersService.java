@@ -2,6 +2,7 @@ package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.component.ClientWebSocket;
+import com.project.apex.component.TradeManager;
 import com.project.apex.data.trades.*;
 import com.project.apex.component.BaseTradeManager;
 import com.project.apex.component.LottoTradeManager;
@@ -26,17 +27,16 @@ public class OrdersService {
     private static final Logger logger = LoggerFactory.getLogger(OrdersService.class);
     private final AccountService accountService;
     private final ClientWebSocket clientWebSocket;
-    private final BaseTradeManager baseTradeManager;
-    private final LottoTradeManager lottoTradeManager;
+    private final TradeManager tradeManager;
 
     @Autowired
     public OrdersService(
             AccountService accountService,
-            @Lazy ClientWebSocket clientWebSocket, BaseTradeManager baseTradeManager, LottoTradeManager lottoTradeManager) {
+            @Lazy ClientWebSocket clientWebSocket,
+            TradeManager tradeManager) {
         this.accountService = accountService;
         this.clientWebSocket = clientWebSocket;
-        this.baseTradeManager = baseTradeManager;
-        this.lottoTradeManager = lottoTradeManager;
+        this.tradeManager = tradeManager;
     }
 
     @PostConstruct
@@ -54,8 +54,8 @@ public class OrdersService {
                 RiskMap ordersByRiskType = handleMapOrdersByRiskType(orders);
                 TradeMap baseTradeMap = ordersByRiskType.get(BASE);
                 TradeMap lottoTradeMap = ordersByRiskType.get(LOTTO);
-                TradeRecord<BaseTrade> baseTradeRecord = baseTradeManager.watch(baseTradeMap, BASE);
-                TradeRecord<LottoTrade> lottoTradeRecord = lottoTradeManager.watch(lottoTradeMap, LOTTO);
+                TradeRecord<BaseTrade> baseTradeRecord = tradeManager.watch(baseTradeMap, BASE);
+                TradeRecord<LottoTrade> lottoTradeRecord = tradeManager.watch(lottoTradeMap, LOTTO);
 
                 if (clientWebSocket.isConnected()) {
                     clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord, lottoTradeRecord)));

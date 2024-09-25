@@ -12,6 +12,12 @@ import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 @MappedSuperclass
 public class Trade {
 
+    public final double tradePercentModifier = 0.042;
+    public final double stopLossPercentage = 0.40;
+    public final double trim1Percentage = 0.25;
+    public final double trim2Percentage = 0.50;
+    public final double initialRunnersFloorModifier = 1.25;
+
     @Id
     @Column(name = "id")
     private Long id;
@@ -71,6 +77,10 @@ public class Trade {
     private Double trim1PriceFinal = 0.0;
     @Column(name = "stop_price_final")
     private Double stopPriceFinal = 0.0;
+    @Column(name = "trim2_quantity")
+    private Integer trim2Quantity;
+    @Column(name = "trim2_price_final")
+    private Double trim2PriceFinal = 0.0;
 
     public Trade() {}
 
@@ -94,10 +104,6 @@ public class Trade {
         this.setSymbol(TradeOrder.getSymbol(fillOrder));
         this.calculateStopsAndTrims();
     }
-
-    public void calculateStopsAndTrims() {
-        System.out.println("hello");
-    };
 
     public boolean isPending() {
         return this.getStatus() == PENDING;
@@ -342,5 +348,43 @@ public class Trade {
     public void setFillOrderId(Long fillOrderId) {
         this.fillOrderId = fillOrderId;
     }
+
+    public double getTradePercentModifier() {
+        return tradePercentModifier;
+    }
+
+    public double getStopLossPercentage() {
+        return stopLossPercentage;
+    }
+
+    public double getTrim1Percentage() {
+        return trim1Percentage;
+    }
+
+    public double getTrim2Percentage() {
+        return trim2Percentage;
+    }
+
+    public double getInitialRunnersFloorModifier() {
+        return initialRunnersFloorModifier;
+    }
+
+    public Integer getTrim2Quantity() {
+        return trim2Quantity;
+    }
+
+    public void setTrim2Quantity(Integer trim2Quantity) {
+        this.trim2Quantity = trim2Quantity;
+    }
+
+    public Double getTrim2PriceFinal() {
+        return trim2PriceFinal;
+    }
+
+    public void setTrim2PriceFinal(Double trim2PriceFinal) {
+        this.trim2PriceFinal = trim2PriceFinal;
+    }
+
+    public void calculateStopsAndTrims() {}
 
 }

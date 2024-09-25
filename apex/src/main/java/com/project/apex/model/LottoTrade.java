@@ -4,28 +4,22 @@ import com.project.apex.data.trades.RiskType;
 import com.project.apex.util.Record;
 import jakarta.persistence.*;
 
-import static com.project.apex.data.trades.TradeStatus.NEW;
 import static com.project.apex.util.Convert.roundedDouble;
 
 @Entity
 @Table(name = "lotto_trade")
 public class LottoTrade extends Trade {
 
-    public static final double tradePercentModifier = 0.02;
-    public static final double stopLossPercentage = 0.75;
-    public static final double trim1Percentage = 0.75;
-    final double initialRunnersFloorModifier = 1.20;
+    public final double tradePercentModifier = 0.02;
+    public final double stopLossPercentage = 0.75;
+    public final double trim1Percentage = 0.75;
+    public final double initialRunnersFloorModifier = 1.20;
 
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "riskType")
     private final RiskType riskType = RiskType.LOTTO;
 
     public LottoTrade() {}
-
-    public LottoTrade(Long id, double totalEquity, double initialAsk, int quantity, Long fillOrderId) {
-        super(id, totalEquity, initialAsk, quantity, fillOrderId);
-        calculateStopsAndTrims();
-    }
 
     @Override
     public void calculateStopsAndTrims() {
@@ -53,4 +47,23 @@ public class LottoTrade extends Trade {
         return riskType;
     }
 
+    @Override
+    public double getTradePercentModifier() {
+        return tradePercentModifier;
+    }
+
+    @Override
+    public double getStopLossPercentage() {
+        return stopLossPercentage;
+    }
+
+    @Override
+    public double getTrim1Percentage() {
+        return trim1Percentage;
+    }
+
+    @Override
+    public double getInitialRunnersFloorModifier() {
+        return initialRunnersFloorModifier;
+    }
 }
