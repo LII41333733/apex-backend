@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.component.ClientWebSocket;
 import com.project.apex.data.trades.*;
 import com.project.apex.data.trades.TradeRecord;
-import com.project.apex.model.BaseTrade;
-import com.project.apex.model.LottoTrade;
 import com.project.apex.model.Trade;
 import com.project.apex.util.Record;
 import jakarta.annotation.PostConstruct;
