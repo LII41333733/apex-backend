@@ -1,10 +1,8 @@
 package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.project.apex.config.EnvConfig;
 import com.project.apex.data.trades.*;
 import com.project.apex.model.BaseTrade;
-import com.project.apex.model.Trade;
 import com.project.apex.repository.BaseTradeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,23 +15,17 @@ import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
 @Service
-public class BaseTradeService extends TradeService {
+public class BaseTradeService extends TradeService<BaseTrade> implements TradeServiceInterface<BaseTrade> {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseTradeService.class);
 
     @Autowired
-    public BaseTradeService(
-            AccountService accountService,
-            EnvConfig envConfig,
-            MarketService marketService,
-            TradeFactory tradeFactory,
-            BaseTradeRepository baseTradeRepository
-    ) {
-        super(accountService, envConfig, marketService, tradeFactory, baseTradeRepository);
+    public BaseTradeService(AccountService accountService, MarketService marketService, BaseTradeRepository baseTradeRepository) {
+        super(accountService, marketService, baseTradeRepository);
     }
 
     @Override
-    public void finalizeTrade(Trade trade, TradeLegMap tradeLegMap) {
+    public void finalizeTrade(BaseTrade trade, TradeLegMap tradeLegMap) {
         logger.info("BaseTradeService.finalizeTrade: Start: {}", trade.getId());
         int totalQuantity = trade.getQuantity();
 
@@ -65,6 +57,7 @@ public class BaseTradeService extends TradeService {
         trade.setPostTradeBalance(trade.getPreTradeBalance() + trade.getPl());
     }
 
+    @Override
     public void handleOpenTrades(BaseTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
         if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
             trade.setTrimStatus((byte) 1);

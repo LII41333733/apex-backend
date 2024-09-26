@@ -32,7 +32,7 @@ public class TradeController {
         logger.info("TradeController.placeTrade: BuyData: {}", buyDataRecord);
 
         try {
-            tradeFactory.placeFill(buyDataRecord);
+            tradeFactory.placeTrade(buyDataRecord);
             marketStream.stopAllStreams();
 
             return new ResponseEntity<>(HttpStatus.OK);

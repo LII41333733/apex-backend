@@ -10,7 +10,7 @@ import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 
 @MappedSuperclass
-public class Trade {
+public abstract class Trade {
 
     public final double tradePercentModifier = 0.042;
     public final double stopLossPercentage = 0.40;

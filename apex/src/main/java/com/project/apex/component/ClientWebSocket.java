@@ -32,15 +32,14 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private final MarketService marketService;
     private final TradeFactory tradeFactory;
 
-    // A thread-safe list to store all active WebSocket sessions
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
     @Autowired
     public ClientWebSocket(
             AccountService accountService,
-           MarketStream marketStream,
-           @Lazy OrdersService ordersService,
-           MarketService marketService,
+            MarketStream marketStream,
+            @Lazy OrdersService ordersService,
+            MarketService marketService,
             TradeFactory tradeFactory) {
         this.accountService = accountService;
         this.ordersService = ordersService;
@@ -62,13 +61,11 @@ public class ClientWebSocket extends TextWebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         logger.error("Transport error: " + session.getId(), exception);
-        // Check if the session is still open before closing
         if (session.isOpen()) {
             session.close(CloseStatus.SERVER_ERROR);
         }
         sessions.remove(session);
         if (sessions.isEmpty()) {
-            // Mark as disconnected only if there are no active sessions left
             setConnected(false);
         }
     }
@@ -97,7 +94,6 @@ public class ClientWebSocket extends TextWebSocketHandler {
                 }
             } catch (IOException e) {
                 logger.error("IOException: " + e.getMessage(), e);
-                // Close session and remove from list if there's an issue
                 session.close(CloseStatus.SERVER_ERROR);
                 sessions.remove(session);
             } catch (Exception e) {
@@ -106,7 +102,6 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-//    @Scheduled(fixedRate = 3000)
     @Scheduled(fixedRate = 5000)
     public void fetchOrdersScheduleActive() {
         if (!sessions.isEmpty()) {
@@ -118,6 +113,13 @@ public class ClientWebSocket extends TextWebSocketHandler {
             } catch (Exception e) {
                 logger.error("Failed to fetch orders", e);
             }
+        }
+    }
+
+    @Scheduled(fixedRate = 5000)
+    public void fetchOrdersSchedule() {
+        if (sessions.isEmpty()) {
+            ordersService.fetchOrders();
         }
     }
 

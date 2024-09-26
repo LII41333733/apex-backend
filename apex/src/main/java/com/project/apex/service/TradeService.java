@@ -1,61 +1,45 @@
 package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.project.apex.config.EnvConfig;
 import com.project.apex.data.account.Balance;
 import com.project.apex.data.orders.OrderFillRecord;
 import com.project.apex.data.trades.*;
-import com.project.apex.model.BaseTrade;
-import com.project.apex.model.LottoTrade;
 import com.project.apex.model.Trade;
-import com.project.apex.repository.BaseTradeRepository;
-import com.project.apex.repository.LottoTradeRepository;
 import com.project.apex.repository.TradeRepository;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
 import com.project.apex.util.TradeOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
-
-import static com.project.apex.data.trades.RiskType.BASE;
-import static com.project.apex.data.trades.RiskType.LOTTO;
 import static com.project.apex.data.trades.TradeLeg.FILL;
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.util.TradeOrder.*;
 import static com.project.apex.util.TradeOrder.isRejected;
 
-public abstract class TradeService {
+public abstract class TradeService<T extends Trade> {
 
     private static final Logger logger = LoggerFactory.getLogger(TradeService.class);
     private final AccountService accountService;
-    private final EnvConfig envConfig;
     private final MarketService marketService;
-    private final TradeFactory tradeFactory;
-    //    private final BaseTradeRepository baseTradeRepository;
-//    private final LottoTradeRepository lottoTradeRepository;
-    private final TradeRepository tradeRepository;
+    private final TradeRepository<T> tradeRepository;
 
-    public TradeService(
-            AccountService accountService,
-            EnvConfig envConfig,
-            MarketService marketService,
-            TradeFactory tradeFactory,
-            TradeRepository tradeRepository) {
+    public TradeService(AccountService accountService,
+                        MarketService marketService,
+                        TradeRepository<T> tradeRepository) {
         this.accountService = accountService;
-        this.envConfig = envConfig;
         this.marketService = marketService;
-        this.tradeFactory = tradeFactory;
         this.tradeRepository = tradeRepository;
     }
 
-    public Trade placeFill(Trade trade, BuyDataRecord buyDataRecord) {
+    public List<T> fetchAllTrades() {
+        return tradeRepository.findAll();
+    }
+
+    public T placeTrade(T trade, BuyDataRecord buyDataRecord) {
         RiskType riskType = buyDataRecord.riskType();
         String riskTypeName = riskType.name();
 
@@ -111,6 +95,7 @@ public abstract class TradeService {
                     trade.setQuantity(quantity);
                     trade.setFillOrderId(orderId);
                     trade.calculateStopsAndTrims();
+                    tradeRepository.save(trade);
                 } else {
                     logger.error("{}.placeFill: Fill UnSuccessful: {}", riskTypeName, id);
                 }
@@ -124,34 +109,35 @@ public abstract class TradeService {
         return trade;
     }
 
-    public void sellTrade(SellTradeRecord sellTradeRecord, TradeRepository tradeRepository) {
-        Long id = sellTradeRecord.id();
-        Optional<Trade> tradeOpt = tradeRepository.findById(id);
-
-        if (tradeOpt.isPresent()) {
-            Trade trade = tradeOpt.get();
-            placeMarketSell(trade, STOP);
-        }
-    }
-
-    public void modifyTrade(ModifyTradeRecord modifyTradeRecord, TradeRepository tradeRepository) {
+    public void modifyTrade(ModifyTradeRecord modifyTradeRecord) {
         Long id = modifyTradeRecord.id();
         TradeLeg tradeLeg = modifyTradeRecord.tradeLeg();
         double price = modifyTradeRecord.price();
-        Optional<Trade> tradeOpt = tradeRepository.findById(id);
+        Optional<T> tradeOpt = tradeRepository.findById(id);
 
         if (tradeOpt.isPresent()) {
-            Trade trade = tradeOpt.get();
+            T trade = tradeOpt.get();
             switch (tradeLeg) {
                 case STOP -> trade.setStopPrice(price);
                 case TRIM1 -> trade.setTrim1Price(price);
                 case TRIM2 -> trade.setTrim2Price(price);
             }
+
             tradeRepository.save(trade);
         }
     }
 
-    public boolean placeMarketSell(Trade trade, TradeLeg TradeLeg) {
+    public void sellTrade(SellTradeRecord sellTradeRecord) {
+        Long id = sellTradeRecord.id();
+        Optional<T> tradeOpt = tradeRepository.findById(id);
+
+        if (tradeOpt.isPresent()) {
+            T trade = tradeOpt.get();
+            placeMarketSell(trade, STOP);
+        }
+    }
+
+    public boolean placeMarketSell(T trade, TradeLeg TradeLeg) {
         logger.info("BaseTradeService.placeMarketSell: Start");
         boolean result = true;
 
@@ -196,9 +182,9 @@ public abstract class TradeService {
         return result;
     }
 
-    public TradeRecord<Trade> watch(RiskType riskType, TradeMap tradeMap, TradeRepository tradeRepository) throws IOException, URISyntaxException {
+    public TradeRecord<T> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
         logger.debug("TradeManager.watch: Start: Risk Type: {}", riskType);
-        Map<Long, Trade> allTrades = new HashMap<>();
+        Map<Long, T> allTrades = new HashMap<>();
         List<Long> pendingTrades = new ArrayList<>();
         List<Long> openTrades = new ArrayList<>();
         List<Long> runnerTrades = new ArrayList<>();
@@ -210,11 +196,11 @@ public abstract class TradeService {
         if (tradeMap != null && !tradeMap.isEmpty()) {
             for (TradeLegMap.Entry<Long, TradeLegMap> baseOrderEntry : tradeMap.entrySet()) {
                 Long id = baseOrderEntry.getKey();
-                Optional<Trade> tradeOpt = tradeRepository.findById(id);
+                Optional<T> tradeOpt = tradeRepository.findById(id);
                 TradeLegMap tradeLegMap = baseOrderEntry.getValue();
 
                 if (tradeOpt.isPresent()) {
-                    Trade trade = tradeOpt.get();
+                    T trade = tradeOpt.get();
                     JsonNode fillOrder = tradeLegMap.get(FILL);
                     JsonNode stopOrder = tradeLegMap.get(STOP);
                     boolean hasFillOrder = fillOrder != null;
@@ -297,7 +283,7 @@ public abstract class TradeService {
         return new TradeRecord<>(allTrades, pendingTrades, openTrades, runnerTrades, filledTrades, canceledTrades, rejectedTrades);
     }
 
-    public void setLastAndMaxPrices(Trade trade) throws IOException, URISyntaxException {
+    public void setLastAndMaxPrices(T trade) throws IOException, URISyntaxException {
         logger.debug("BaseTradeService.setLastAndMaxPrices: Start: {}", trade.getId());
         JsonNode quote = marketService.getPrices(trade.getOptionSymbol());
         double bid = quote.get("bid").asDouble();
@@ -306,235 +292,7 @@ public abstract class TradeService {
         trade.setMaxPrice(Math.max(tradeMaxPrice, bid));
     }
 
-    public void handleOpenTrades(Trade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {}
+    public void handleOpenTrades(T trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {}
 
-    public void finalizeTrade(Trade trade, TradeLegMap tradeLegMap) {}
+    public void finalizeTrade(T trade, TradeLegMap tradeLegMap) {}
 }
-
-//    public void modifyStopOrder(Integer orderId, Double newPrice, BaseTrade trade) {
-//        logger.info("BaseTradeService.modifyStopOrder: Start: ID: {} Order ID: {} New Price: {}", trade.getId(), orderId, newPrice);
-//        try {
-//            Map<String, String> parameters = new HashMap<>();
-//            parameters.put("stop[0]", newPrice.toString());
-//            parameters.put("limit[0]", newPrice.toString());
-//
-//            JsonNode response = accountService.put("/orders/" + orderId, parameters);
-//
-//            if (isOk(response)) {
-//                logger.info("BaseTradeService.modifyStopOrder: Modify Stop Successful");
-//            } else {
-//                logger.error("BaseTradeService.modifyStopOrder: Modify Stop UnSuccessful");
-//            }
-//        } catch (Exception e) {
-//            logger.error("BaseTradeService.modifyStopOrder: ERROR: Exception: {}", e.getMessage(), e);
-//        }
-//    }
-
-//    public String handleLottoTrade(BuyData buyDataRecord) throws IOException {
-//        Optional<Trade> lastLossTradeEntity = baseTradeRepository.findLastLossTradeWithoutLossId();
-//        Trade lastLossTrade = lastLossTradeEntity.orElse(null);
-//
-//        Double lastLossPl = Double.valueOf(0);
-//
-//        if (lastLossTradeEntity.isPresent()) {
-//            lastLossPl = lastLossTrade.getPl();
-//        }
-//
-//        Double ask = buyData.getPrice().setScale(2, RoundingMode.UP);
-//        Balance balance = accountService.getBalanceData();
-//        Double totalEquity = balance.getTotalEquity().setScale(2, RoundingMode.HALF_UP);
-//        Double totalCash = balance.getTotalCash().setScale(2, RoundingMode.HALF_UP);
-//        double tradePercentModifier = 0.03;
-//        Double tradeAmount = totalEquity.multiply(Double.valueOf(tradePercentModifier)).setScale(0, RoundingMode.UP);
-//        Double tradeAmountWithLosses = tradeAmount.add(lastLossPl.abs()).setScale(0, RoundingMode.UP);
-//
-//        if (tradeAmountWithLosses.compareTo(totalCash) < 0) {
-//            Map<String, String> parameters = new HashMap<>();
-//            Double contractCost = ask.multiply(Double.valueOf(100));
-//            Double contractsAmount = tradeAmountWithLosses.divide(contractCost, 0, RoundingMode.UP);
-//            Double stopPrice = ask.divide(Double.valueOf(2), 2, RoundingMode.UP);
-//            Double targetPrice = ask.multiply(Double.valueOf(2));
-//            Double tradeAmountAfterContracts = contractsAmount.multiply(contractCost);
-//
-//            System.out.println("TRADE DETAILS ------------------------");
-//            System.out.println("Symbol: " + buyData.getOption());
-//            System.out.println("Ask: " + ask);
-//            System.out.println("Total equity: " + totalEquity);
-//            System.out.println("Total cash: " + totalCash);
-//            System.out.println("Recovering Losses: " + lastLossPl);
-//            System.out.println("Trade amount: " + tradeAmount);
-//            System.out.println("Trade amount with losses: " + tradeAmountWithLosses);
-//            System.out.println("Trade amount after contracts: " + tradeAmountAfterContracts);
-//            System.out.println("Contracts amount: " + contractsAmount);
-//            System.out.println("Stop Price: " + stopPrice);
-//            System.out.println("Target Price: " + targetPrice);
-//            System.out.println("---------------------------------------");
-//
-//
-//            parameters.put("class", "otoco");
-//            parameters.put("duration[0]", "day");
-//            parameters.put("duration[1]", "gtc");
-//            parameters.put("duration[2]", "gtc");
-//
-//            parameters.put("quantity[0]", String.valueOf(contractsAmount));
-//            parameters.put("quantity[1]", String.valueOf(contractsAmount));
-//            parameters.put("quantity[2]", String.valueOf(contractsAmount));
-//
-//            parameters.put("side[0]", "buy_to_open");
-//            parameters.put("side[1]", "sell_to_close");
-//            parameters.put("side[2]", "sell_to_close");
-//
-//            parameters.put("option_symbol[0]", buyData.getOption());
-//            parameters.put("option_symbol[1]", buyData.getOption());
-//            parameters.put("option_symbol[2]", buyData.getOption());
-//
-//            parameters.put("price[0]", String.valueOf(ask));
-//            parameters.put("price[1]", String.valueOf(targetPrice));
-//            parameters.put("price[2]", String.valueOf(stopPrice));
-//            parameters.put("stop[2]", String.valueOf(stopPrice));
-//
-//            parameters.put("type[0]", "limit");
-//            parameters.put("type[1]", "limit");
-//            parameters.put("type[2]", "stop");
-//
-//            String response = accountService.post("/orders", parameters);
-//            ObjectMapper objectMapper = new ObjectMapper();
-//            JsonNode jsonNode = objectMapper.readTree(response).get("order");
-//
-//            if (jsonNode == null) {
-//                logger.error(response);
-//                return response;
-//            } else {
-//                logger.info("Order response: " + jsonNode);
-//                String status = jsonNode.get("status").asText();
-//                Integer id = jsonNode.get("id").asInt();
-//
-//                if (status.equals("ok")) {
-//                    Trade newTrade = new Trade();
-//                    newTrade.setOrderId(id);
-//                    newTrade.setTradeAmount(tradeAmountAfterContracts);
-//                    newTrade.setBalance(totalEquity);
-//
-//                    if (lastLossTradeEntity.isPresent()) {
-//                        lastLossTrade.setLossId(id);
-//                        newTrade.setRecoveryId(lastLossTrade.getOrderId());
-//                        baseTradeRepository.save(lastLossTrade);
-//                    }
-//
-//                    baseTradeRepository.save(newTrade);
-//                    return "Order returned ok";
-//                } else {
-//                    return "Order returned not ok";
-//                }
-//            }
-//        } else {
-//            logger.warn("Not enough cash available to make trade");
-//            return "Not enough cash available to make trade";
-//        }
-//    }
-//
-//    public String handleRecoveryTrade(BuyData buyData) throws IOException {
-//        Optional<Trade> lastLossTradeEntity = baseTradeRepository.findLastLossTradeWithoutLossId();
-//        Trade lastLossTrade = lastLossTradeEntity.orElse(null);
-//
-//        Double lastLossPl = Double.valueOf(0);
-//
-//        if (lastLossTradeEntity.isPresent()) {
-//            lastLossPl = lastLossTrade.getPl();
-//        }
-//
-//        Double ask = buyData.getPrice().setScale(2, RoundingMode.UP);
-//        Balance balance = accountService.getBalanceData();
-//        Double totalEquity = balance.getTotalEquity().setScale(2, RoundingMode.HALF_UP);
-//        Double totalCash = balance.getTotalCash().setScale(2, RoundingMode.HALF_UP);
-//        double tradePercentModifier = 0.03;
-//        Double tradeAmount = totalEquity.multiply(Double.valueOf(tradePercentModifier)).setScale(0, RoundingMode.UP);
-//        Double tradeAmountWithLosses = tradeAmount.add(lastLossPl.abs()).setScale(0, RoundingMode.UP);
-//
-//        if (tradeAmountWithLosses.compareTo(totalCash) < 0) {
-//            Map<String, String> parameters = new HashMap<>();
-//            Double contractCost = ask.multiply(Double.valueOf(100));
-//            Double contractsAmount = tradeAmountWithLosses.divide(contractCost, 0, RoundingMode.UP);
-//            Double stopPrice = ask.divide(Double.valueOf(2), 2, RoundingMode.UP);
-//            Double targetPrice = ask.multiply(Double.valueOf(2));
-//            Double tradeAmountAfterContracts = contractsAmount.multiply(contractCost);
-//
-//            System.out.println("TRADE DETAILS ------------------------");
-//            System.out.println("Symbol: " + buyData.getOption());
-//            System.out.println("Ask: " + ask);
-//            System.out.println("Total equity: " + totalEquity);
-//            System.out.println("Total cash: " + totalCash);
-//            System.out.println("Recovering Losses: " + lastLossPl);
-//            System.out.println("Trade amount: " + tradeAmount);
-//            System.out.println("Trade amount with losses: " + tradeAmountWithLosses);
-//            System.out.println("Trade amount after contracts: " + tradeAmountAfterContracts);
-//            System.out.println("Contracts amount: " + contractsAmount);
-//            System.out.println("Stop Price: " + stopPrice);
-//            System.out.println("Target Price: " + targetPrice);
-//            System.out.println("---------------------------------------");
-//
-//
-//            parameters.put("class", "otoco");
-//            parameters.put("duration[0]", "day");
-//            parameters.put("duration[1]", "gtc");
-//            parameters.put("duration[2]", "gtc");
-//
-//            parameters.put("quantity[0]", String.valueOf(contractsAmount));
-//            parameters.put("quantity[1]", String.valueOf(contractsAmount));
-//            parameters.put("quantity[2]", String.valueOf(contractsAmount));
-//
-//            parameters.put("side[0]", "buy_to_open");
-//            parameters.put("side[1]", "sell_to_close");
-//            parameters.put("side[2]", "sell_to_close");
-//
-//            parameters.put("option_symbol[0]", buyData.getOption());
-//            parameters.put("option_symbol[1]", buyData.getOption());
-//            parameters.put("option_symbol[2]", buyData.getOption());
-//
-//            parameters.put("price[0]", String.valueOf(ask));
-//            parameters.put("price[1]", String.valueOf(targetPrice));
-//            parameters.put("price[2]", String.valueOf(stopPrice));
-//            parameters.put("stop[2]", String.valueOf(stopPrice));
-//
-//            parameters.put("type[0]", "limit");
-//            parameters.put("type[1]", "limit");
-//            parameters.put("type[2]", "stop");
-//
-//            String response = accountService.post("/orders", parameters);
-//            ObjectMapper objectMapper = new ObjectMapper();
-//            JsonNode jsonNode = objectMapper.readTree(response).get("order");
-//
-//            if (jsonNode == null) {
-//                logger.error(response);
-//                return response;
-//            } else {
-//                logger.info("Order response: " + jsonNode);
-//                String status = jsonNode.get("status").asText();
-//                Integer id = jsonNode.get("id").asInt();
-//
-//                if (status.equals("ok")) {
-//                    Trade newTrade = new Trade();
-//                    newTrade.setOrderId(id);
-//                    newTrade.setTradeAmount(tradeAmountAfterContracts);
-//                    newTrade.setBalance(totalEquity);
-//
-//                    if (lastLossTradeEntity.isPresent()) {
-//                        lastLossTrade.setLossId(id);
-//                        newTrade.setRecoveryId(lastLossTrade.getOrderId());
-//                        baseTradeRepository.save(lastLossTrade);
-//                    }
-//
-//                    baseTradeRepository.save(newTrade);
-//                    return "Order returned ok";
-//                } else {
-//                    return "Order returned not ok";
-//                }
-//            }
-//        } else {
-//            logger.warn("Not enough cash available to make trade");
-//            return "Not enough cash available to make trade";
-//        }
-//    }
-
-
-// Positions, Options Chain, Orders, Trades

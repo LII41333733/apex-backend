@@ -3,9 +3,6 @@ package com.project.apex.data.trades;
 import com.project.apex.model.BaseTrade;
 import com.project.apex.model.LottoTrade;
 import com.project.apex.model.Trade;
-import com.project.apex.repository.BaseTradeRepository;
-import com.project.apex.repository.LottoTradeRepository;
-import com.project.apex.repository.TradeRepository;
 import com.project.apex.service.BaseTradeService;
 import com.project.apex.service.LottoTradeService;
 import com.project.apex.service.TradeService;
@@ -17,77 +14,72 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.project.apex.data.trades.RiskType.BASE;
+import static com.project.apex.data.trades.RiskType.LOTTO;
+
 @Component
 public class TradeFactory {
 
-    private final BaseTradeRepository baseTradeRepository;
     private final BaseTradeService baseTradeService;
-    private final LottoTradeRepository lottoTradeRepository;
     private final LottoTradeService lottoTradeService;
 
-    public TradeRepository tradeRepository;
-    public TradeService tradeService;
-    public Trade trade;
-
     @Autowired
-    public TradeFactory(BaseTradeRepository baseTradeRepository, BaseTradeService baseTradeService, LottoTradeRepository lottoTradeRepository, LottoTradeService lottoTradeService) {
-        this.baseTradeRepository = baseTradeRepository;
+    public TradeFactory(BaseTradeService baseTradeService, LottoTradeService lottoTradeService) {
         this.baseTradeService = baseTradeService;
-        this.lottoTradeRepository = lottoTradeRepository;
         this.lottoTradeService = lottoTradeService;
     }
 
-    public void execute(RiskType riskType) {
+    @SuppressWarnings("unchecked")
+    public <T extends Trade> TradeService<T> getTradeService(RiskType riskType) {
         switch (riskType) {
             case BASE:
-                tradeService = baseTradeService;
-                tradeRepository = baseTradeRepository;
-                trade = new BaseTrade();
-                break;
+                return (TradeService<T>) baseTradeService;
             case LOTTO:
-                tradeService = lottoTradeService;
-                tradeRepository = lottoTradeRepository;
-                trade = new LottoTrade();
-                break;
+                return (TradeService<T>) lottoTradeService;
             default:
                 throw new IllegalArgumentException("Invalid riskType");
         }
     }
 
-    public void placeFill(BuyDataRecord buyDataRecord) {
-        RiskType riskType = buyDataRecord.riskType();
-        execute(riskType);
-        tradeService.placeFill(trade, buyDataRecord);
-        tradeRepository.save(trade);
-    }
-
-    public void modifyTrade(ModifyTradeRecord modifyTradeRecord) {
-        RiskType riskType = modifyTradeRecord.riskType();
-        execute(riskType);
-        tradeService.modifyTrade(modifyTradeRecord, tradeRepository);
-    }
-
-    public TradeRecord<Trade> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
-        execute(riskType);
-        return tradeService.watch(riskType, tradeMap, tradeRepository);
-    }
-
-    public void finalizeTrade(Trade trade, TradeLegMap tradeLegMap) {
-        execute(trade.getRiskType());
-        tradeService.finalizeTrade(trade, tradeLegMap);
-    }
-
-    public void sellTrade(SellTradeRecord sellTradeRecord) {
-        execute(sellTradeRecord.riskType());
-        tradeService.sellTrade(sellTradeRecord, tradeRepository);
+    @SuppressWarnings("unchecked")
+    public <T extends Trade> T getTradeInstance(RiskType riskType) {
+        switch (riskType) {
+            case BASE:
+                return (T) new BaseTrade();
+            case LOTTO:
+                return (T) new LottoTrade();
+            default:
+                throw new IllegalArgumentException("Invalid riskType");
+        }
     }
 
     public List<Trade> fetchAllTrades() {
         List<Trade> trades = new ArrayList<>();
-        List<Trade> baseTrades = baseTradeRepository.findAll();
-        List<Trade> lottoTrades = lottoTradeRepository.findAll();
-        trades.addAll(baseTrades);
-        trades.addAll(lottoTrades);
+        trades.addAll(getTradeService(BASE).fetchAllTrades());
+        trades.addAll(getTradeService(LOTTO).fetchAllTrades());
         return trades;
     }
+
+    public <T extends Trade> void placeTrade(BuyDataRecord buyDataRecord) {
+        RiskType riskType = buyDataRecord.riskType();
+        TradeService<T> tradeService = getTradeService(riskType);
+        tradeService.placeTrade(getTradeInstance(riskType), buyDataRecord);
+    }
+
+    public <T extends Trade> void modifyTrade(ModifyTradeRecord modifyTradeRecord) {
+        RiskType riskType = modifyTradeRecord.riskType();
+        TradeService<T> tradeService = getTradeService(riskType);
+        tradeService.modifyTrade(modifyTradeRecord);
+    }
+
+    public <T extends Trade> void sellTrade(SellTradeRecord sellTradeRecord) {
+        TradeService<T> tradeService = getTradeService(sellTradeRecord.riskType());
+        tradeService.sellTrade(sellTradeRecord);
+    }
+
+    public <T extends Trade> TradeRecord<T> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
+        TradeService<T> tradeService = getTradeService(riskType);
+        return tradeService.watch(riskType, tradeMap);
+    }
+
 }

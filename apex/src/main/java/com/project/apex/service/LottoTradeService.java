@@ -1,27 +1,14 @@
 package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.project.apex.component.TradeManagerInterface;
-import com.project.apex.config.EnvConfig;
-import com.project.apex.data.account.Balance;
-import com.project.apex.data.orders.OrderFillRecord;
 import com.project.apex.data.trades.*;
-import com.project.apex.model.BaseTrade;
 import com.project.apex.model.LottoTrade;
-import com.project.apex.model.Trade;
 import com.project.apex.repository.LottoTradeRepository;
-import com.project.apex.util.Convert;
-import com.project.apex.util.Record;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.*;
-
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeLeg.TRIM1;
 import static com.project.apex.data.trades.TradeStatus.RUNNERS;
@@ -29,28 +16,17 @@ import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
 @Service
-public class LottoTradeService extends TradeService {
-
-    /**
-     * For base trades, on the UI, hide all options with asks less than .11
-     * They should be saved for lottos
-     */
+public class LottoTradeService extends TradeService<LottoTrade> implements TradeServiceInterface<LottoTrade> {
 
     private static final Logger logger = LoggerFactory.getLogger(LottoTradeService.class);
 
     @Autowired
-    public LottoTradeService(
-            AccountService accountService,
-            EnvConfig envConfig,
-            MarketService marketService,
-            TradeFactory tradeFactory,
-            LottoTradeRepository lottoTradeRepository
-    ) {
-        super(accountService, envConfig, marketService, tradeFactory, lottoTradeRepository);
+    public LottoTradeService(AccountService accountService, MarketService marketService, LottoTradeRepository lottoTradeRepository) {
+        super(accountService, marketService, lottoTradeRepository);
     }
 
     @Override
-    public void finalizeTrade(Trade trade, TradeLegMap tradeLegMap) {
+    public void finalizeTrade(LottoTrade trade, TradeLegMap tradeLegMap) {
         logger.debug("LottoTradeService.finalizeTrade: Start: {}", trade.getId());
         int totalQuantity = trade.getQuantity();
 
@@ -74,7 +50,7 @@ public class LottoTradeService extends TradeService {
     }
 
     @Override
-    public void handleOpenTrades(Trade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
+    public void handleOpenTrades(LottoTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
         if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
             trade.setTrimStatus((byte) 1);
             logger.info("LottoTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
