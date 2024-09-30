@@ -2,7 +2,7 @@
 
 Apex Options Trading is a platform that allows traders to open ETF and equity positions supported by personalized risk management strategies ensuring swift order execution and effective profit security.
 
-This application is the culmination of the passion I have for both web development and my interest in the rising influence of Fintech services adopted for retail traders. Industry-leading trading platforms such as Fidelity, WeBull, ThinkorSwim and Robinhood all have their relative strengths, however I wanted to create my own platform where users have better control of personal risk/reward factors in the *pre*-trade phase to forego the need to stress or stare at charts throughout the lifetime of the contracts.
+This application is the culmination of the passion I have for both web development and my interest in the rising influence of Fintech services adopted for retail traders. Industry-leading trading platforms such as Fidelity, WeBull, ThinkorSwim and Robinhood all have their relative strengths, however I wanted to create my own platform where users have better control over risk/reward preferences in the *pre*-trade phase to forego the need to stress or stare at charts throughout the lifetime of the contracts.
 
 ### Back-end
 
