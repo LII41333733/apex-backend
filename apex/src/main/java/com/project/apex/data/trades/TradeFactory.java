@@ -8,12 +8,11 @@ import com.project.apex.service.LottoTradeService;
 import com.project.apex.service.TradeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-
 import static com.project.apex.data.trades.RiskType.BASE;
 import static com.project.apex.data.trades.RiskType.LOTTO;
 
@@ -57,6 +56,7 @@ public class TradeFactory {
         List<Trade> trades = new ArrayList<>();
         trades.addAll(getTradeService(BASE).fetchAllTrades());
         trades.addAll(getTradeService(LOTTO).fetchAllTrades());
+        trades.sort(Comparator.comparing(Trade::getOpenDate));
         return trades;
     }
 

@@ -34,7 +34,7 @@ public class TradeOrder {
     }
 
     public static boolean isOk(JsonNode order) {
-        return getStatus(order) == OrderStatus.ok;
+        return order != null && getStatus(order) == OrderStatus.ok;
     }
 
     public static String getSymbol(JsonNode order) {

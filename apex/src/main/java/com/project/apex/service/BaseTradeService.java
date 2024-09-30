@@ -61,8 +61,10 @@ public class BaseTradeService extends TradeService<BaseTrade> implements TradeSe
     public void handleOpenTrades(BaseTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
         if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
             trade.setTrimStatus((byte) 1);
-            logger.info("BaseTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
-            placeMarketSell(trade, TRIM1);
+            logger.info("BaseTradeManager.watch: {}: Trim 1 Hit! Setting Stops to Break Even: {}", riskType, id);
+            if (placeMarketSell(trade, TRIM1)) {
+                trade.setStopPrice(trade.getFillPrice());
+            }
         }
 
         if (trade.getTrimStatus() < 2 && (lastPrice >= trade.getTrim2Price())) {

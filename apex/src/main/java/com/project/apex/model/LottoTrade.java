@@ -10,9 +10,13 @@ import static com.project.apex.util.Convert.roundedDouble;
 @Table(name = "lotto_trade")
 public class LottoTrade extends Trade {
 
+    @Transient
     public final double tradePercentModifier = 0.02;
+    @Transient
     public final double stopLossPercentage = 0.75;
+    @Transient
     public final double trim1Percentage = 0.75;
+    @Transient
     public final double initialRunnersFloorModifier = 1.20;
 
     @Enumerated(EnumType.ORDINAL)
@@ -24,7 +28,6 @@ public class LottoTrade extends Trade {
     @Override
     public void calculateStopsAndTrims() {
         int quantity = this.getQuantity();  // Example number
-
         int trim1Quantity = (int) Math.round(quantity * 0.7);
         int runnersQuantity = quantity - trim1Quantity;
         double ask = this.getFillPrice();

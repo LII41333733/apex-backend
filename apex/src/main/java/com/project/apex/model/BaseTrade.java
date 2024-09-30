@@ -14,10 +14,15 @@ import static com.project.apex.util.Convert.roundedDouble;
 @Table(name = "base_trade")
 public class BaseTrade extends Trade {
 
+    @Transient
     public final double tradePercentModifier = 0.042;
+    @Transient
     public final double stopLossPercentage = 0.40;
+    @Transient
     public final double trim1Percentage = 0.25;
+    @Transient
     public final double trim2Percentage = 0.50;
+    @Transient
     public final double initialRunnersFloorModifier = 1.25;
 
     @Enumerated(EnumType.ORDINAL)

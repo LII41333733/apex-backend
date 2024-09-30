@@ -4,7 +4,6 @@ import com.project.apex.data.trades.TradeFactory;
 import com.project.apex.service.AccountService;
 import com.project.apex.service.MarketService;
 import com.project.apex.service.OrdersService;
-import com.project.apex.service.TradeService;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
 import org.slf4j.Logger;
@@ -17,7 +16,6 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;

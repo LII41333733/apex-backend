@@ -168,11 +168,14 @@ public abstract class TradeService<T extends Trade> {
 
             JsonNode response = accountService.post("/orders", parameters);
             JsonNode order = response.get("order");
+            JsonNode err = response.get("errors").get("error");
+            String err1 = err.get(0).asText();
+            String err2 = err.get(1).asText();
 
             if (isOk(order)) {
                 logger.info("BaseTradeService.placeMarketSell: Market Sell Successful: {}", trade.getId());
             } else {
-                logger.error("BaseTradeService.placeMarketSell: Market Sell UnSuccessful: {}", trade.getId());
+                logger.error("BaseTradeService.placeMarketSell: Market Sell UnSuccessful: {} Tradier Error: {} - {}", trade.getId(), err1, err2);
             }
         } catch (Exception e) {
             logger.error("BaseTradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);

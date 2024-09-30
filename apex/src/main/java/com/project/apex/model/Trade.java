@@ -12,10 +12,15 @@ import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 @MappedSuperclass
 public abstract class Trade {
 
+    @Transient
     public final double tradePercentModifier = 0.042;
+    @Transient
     public final double stopLossPercentage = 0.40;
+    @Transient
     public final double trim1Percentage = 0.25;
+    @Transient
     public final double trim2Percentage = 0.50;
+    @Transient
     public final double initialRunnersFloorModifier = 1.25;
 
     @Id
@@ -44,12 +49,6 @@ public abstract class Trade {
     private LocalDateTime closeDate;
     @Column(name = "max_price")
     private Double maxPrice = (double) 0;
-    @Column(name = "quantity")
-    private Integer quantity;
-    @Column(name = "trim1_quantity")
-    private Integer trim1Quantity;
-    @Column(name = "runners_quantity")
-    private Integer runnersQuantity;
     @Column(name = "pl")
     private Integer pl = 0;
     @Column(name = "trade_amount")
@@ -77,8 +76,14 @@ public abstract class Trade {
     private Double trim1PriceFinal = 0.0;
     @Column(name = "stop_price_final")
     private Double stopPriceFinal = 0.0;
+    @Column(name = "quantity")
+    private Integer quantity = 0;
+    @Column(name = "trim1_quantity")
+    private Integer trim1Quantity = 0;
+    @Column(name = "runners_quantity")
+    private Integer runnersQuantity = 0;
     @Column(name = "trim2_quantity")
-    private Integer trim2Quantity;
+    private Integer trim2Quantity = 0;
     @Column(name = "trim2_price_final")
     private Double trim2PriceFinal = 0.0;
 
