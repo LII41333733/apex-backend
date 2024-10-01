@@ -37,6 +37,10 @@ The UI was designed using components from [shadcn/ui](https://ui.shadcn.com/).
   - Reserved for high-risk, high-reward speculations and uses less leverage to execute these trades.
   - Has a lower stop-loss floor and one less trim than the Base Trade, but handles market volatility better on runner trades to maximize profit on larger price swings.
  
+### Positions
+
+![image](https://github.com/user-attachments/assets/4acb18fc-8806-4877-95f8-064833ff3398)
+![image](https://github.com/user-attachments/assets/dfe30c35-812e-42d2-837d-6b8367d0a268)
 
 
 ### Trades
