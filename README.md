@@ -56,6 +56,8 @@ In development. Charts and data visualization pending.
 1. Host the application completely on Azure.
 2. Utilize AI to forecast trades based on historical outcomes.
 3. SMS and Email Alerts
+4. Stock trading
+5. Userless trading
 
 # Contact
 Mark Fisher
