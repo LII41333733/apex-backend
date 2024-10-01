@@ -45,12 +45,17 @@ All stops and trims can be modified.
 
 ![image](https://github.com/user-attachments/assets/dfe30c35-812e-42d2-837d-6b8367d0a268)
 
-
 ### Trades
 
 In development. Charts and data visualization pending.
 
 ![image](https://github.com/user-attachments/assets/ad549fd1-408b-42d8-87fe-31fceb087938)
+
+### Future
+
+1. Host the application completely on Azure.
+2. Utilize AI to forecast trades based on historical outcomes.
+3. SMS and Email Alerts
 
 # Contact
 Mark Fisher
