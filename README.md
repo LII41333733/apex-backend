@@ -4,19 +4,25 @@ Apex Options Trading is a platform that allows traders to open ETF and equity po
 
 This application is the culmination of the passion I have for both web development and my interest in the rising influence of Fintech services adopted for retail traders. Industry-leading trading platforms such as Fidelity, WeBull, ThinkorSwim and Robinhood all have their relative strengths, however I wanted to create my own platform where users have better control over risk/reward preferences in the *pre*-trade phase to forego the need to stress or stare at charts throughout the lifetime of the contracts.
 
-### Back-end
+Currently this application is only available for personal use and because each account must be connected with a Tradier Brokerage, demos are only made available using the sandbox environment by [request only](mfisher36@gmail.com). This product is in its infancy and will be built upon for as long as I pursue trading.
+
+## Back-end
 
 The back-end was built on a RESTful API architechture using Java with Spring Boot. It integrates a MySQL database for data persistence, ORM Mapping with Hibernate and JWT to secure the API. The application leverages WebSockets to stream real-time market data to the client.
 
 All trades are placed using the [Tradier Brokerage API](https://documentation.tradier.com/brokerage-api).
 
-### Front-end
+## Front-end
 
 The front-end was written in TypeScript using React supported by Vite. State management uses Redux Toolkit; data fetching and caching uses RTK Query.
 
 The UI was designed using components from [shadcn/ui](https://ui.shadcn.com/).
   
-### Features
+## Features
+
+### Options Chain
+
+![image](https://github.com/user-attachments/assets/61eab932-d633-4748-93d5-f650202a3509)
     
 - Base Trades
   - Each trade risks a predetermined base percentage of the account's available buying power.
@@ -30,3 +36,12 @@ The UI was designed using components from [shadcn/ui](https://ui.shadcn.com/).
 - Lotto Trades
   - Reserved for high-risk, high-reward speculations and uses less leverage to execute these trades.
   - Has a lower stop-loss floor and one less trim than the Base Trade, but handles market volatility better on runner trades to maximize profit on larger price swings.
+ 
+
+
+### Trades
+
+In development. Charts and data visualization pending.
+
+![image](https://github.com/user-attachments/assets/ad549fd1-408b-42d8-87fe-31fceb087938)
+
