@@ -4,7 +4,7 @@ Apex Options Trading is a platform that allows traders to open ETF and equity po
 
 This application is the culmination of the passion I have for both web development and my interest in the rising influence of Fintech services adopted for retail traders. Industry-leading trading platforms such as Fidelity, WeBull, ThinkorSwim and Robinhood all have their relative strengths, however I wanted to create my own platform where users have better control over risk/reward preferences in the *pre*-trade phase to forego the need to stress or stare at charts throughout the lifetime of the contracts.
 
-Currently this application is only available for personal use and because each account must be connected with a Tradier Brokerage, demos are only made available using the sandbox environment by [request only](#contact). This product is in its infancy and will be built upon for as long as I pursue trading.
+Currently this application is only available for personal use and because each account must be connected with a Tradier Brokerage, demos are made available using the sandbox environment by [request only](#contact). This product is in its infancy and will be built upon for as long as I pursue trading.
 
 ## Back-end
 
