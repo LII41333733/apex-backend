@@ -12,11 +12,15 @@ The back-end was built on a RESTful API architechture using Java with Spring Boo
 
 All trades are placed using the [Tradier Brokerage API](https://documentation.tradier.com/brokerage-api).
 
+[Repo](https://github.com/LII41333733/apex-backend)
+
 ## Front-end
 
 The front-end was written in TypeScript using React supported by Vite. State management uses Redux Toolkit; data fetching and caching uses RTK Query.
 
 The UI was designed using components from [shadcn/ui](https://ui.shadcn.com/).
+
+[Repo](https://github.com/LII41333733/apex-frontend)
   
 ## Features
 
