@@ -32,3 +32,4 @@ build/
 ### VS Code ###
 .vscode/
 /src/main/resources/
+src/main/java/com/project/apex/config/DataInitializer.java
