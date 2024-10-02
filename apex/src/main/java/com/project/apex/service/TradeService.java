@@ -242,42 +242,40 @@ public abstract class TradeService<T extends Trade> {
                                 logger.info("TradeManager.watch: {}: Order Unfilled (PENDING): {}", riskType, id);
                             }
                         }
+                    }
 
-                        if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
-                            setLastAndMaxPrices(trade);
-                            double lastPrice = trade.getLastPrice();
+                    if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
+                        setLastAndMaxPrices(trade);
+                        double lastPrice = trade.getLastPrice();
 
-                            if (isOpen) {
-                                logger.debug("TradeManager.watch: {}: Updating Stops and Trims: {}", riskType, id);
+                        if (isOpen) {
+                            logger.debug("TradeManager.watch: {}: Updating Stops and Trims: {}", riskType, id);
 
-                                if ((hasStopOrder && TradeOrder.isFilled(stopOrder))
-                                        || (lastPrice <= trade.getStopPrice() && placeMarketSell(trade, STOP))) {
-                                    trade.setStatus(FILLED);
-                                    logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
-                                } else {
-                                    handleOpenTrades(trade, lastPrice, id, riskType, runnerTrades);
-                                    openTrades.add(id);
-                                    logger.info("TradeManager.watch: {}: Order Open: {}", riskType, id);
-                                }
-                            }
-
-                            if (trade.isFilled()) {
-                                filledTrades.add(id);
-
-                                if (!trade.isFinalized()) {
-                                    finalizeTrade(trade, tradeLegMap);
-                                    trade.setStatus(FINALIZED);
-                                    logger.info("TradeManager.watch: {}: (FILLED -> FINALIZED): {}", riskType, id);
-                                }
+                            if ((hasStopOrder && TradeOrder.isFilled(stopOrder))
+                                    || (lastPrice <= trade.getStopPrice() && placeMarketSell(trade, STOP))) {
+                                trade.setStatus(FILLED);
+                                logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
+                            } else {
+                                handleOpenTrades(trade, lastPrice, id, riskType, runnerTrades);
+                                openTrades.add(id);
+                                logger.info("TradeManager.watch: {}: Order Open: {}", riskType, id);
                             }
                         }
 
-                        allTrades.put(id, trade);
-                        tradeRepository.save(trade);
-                        logger.debug("TradeManager.watch: {}: Finish: Saving Trade to Repo", riskType);
-                    } else {
-                        logger.error("TradeManager.watch: {}: Trade exists but no FILL order available. ID: {}", riskType, id);
+                        if (trade.isFilled()) {
+                            filledTrades.add(id);
+
+                            if (!trade.isFinalized()) {
+                                finalizeTrade(trade, tradeLegMap);
+                                trade.setStatus(FINALIZED);
+                                logger.info("TradeManager.watch: {}: (FILLED -> FINALIZED): {}", riskType, id);
+                            }
+                        }
                     }
+
+                    allTrades.put(id, trade);
+                    tradeRepository.save(trade);
+                    logger.debug("TradeManager.watch: {}: Finish: Saving Trade to Repo", riskType);
                 }
             }
         }

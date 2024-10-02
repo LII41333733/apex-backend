@@ -18,6 +18,8 @@ public class LottoTrade extends Trade {
     public final double trim1Percentage = 0.75;
     @Transient
     public final double initialRunnersFloorModifier = 1.20;
+    @Transient
+    private Double trim2Price;
 
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "riskType")
