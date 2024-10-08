@@ -51,7 +51,7 @@ public class LottoTradeService extends TradeService<LottoTrade> implements Trade
 
     @Override
     public void handleOpenTrades(LottoTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
-        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
+        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price()) && trade.getRunnersQuantity() > 0) {
             trade.setTrimStatus((byte) 1);
             logger.info("LottoTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
             placeMarketSell(trade, TRIM1);

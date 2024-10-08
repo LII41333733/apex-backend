@@ -71,6 +71,10 @@ public abstract class TradeService<T extends Trade> {
                 parameters.put("type", "limit");
                 parameters.put("tag", riskTypeName + "-" + id + "-" + TradeLeg.FILL);
 
+                if (quantity < 1) {
+                    throw new Exception("Not enough BP for this trade");
+                }
+
                 new Record<>(riskTypeName + ".placeFill: Fill Parameters", new OrderFillRecord(
                         id,
                         totalEquity,

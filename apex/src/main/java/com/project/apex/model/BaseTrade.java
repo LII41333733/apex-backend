@@ -15,7 +15,7 @@ import static com.project.apex.util.Convert.roundedDouble;
 public class BaseTrade extends Trade {
 
     @Transient
-    public final double tradePercentModifier = 0.042;
+    public final double tradePercentModifier = 0.08;
     @Transient
     public final double stopLossPercentage = 0.40;
     @Transient

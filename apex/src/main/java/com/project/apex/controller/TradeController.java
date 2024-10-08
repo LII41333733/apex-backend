@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+@CrossOrigin(origins = "http://localhost:5173")  // Apply CORS to all methods in this controller
 @RestController
 @RequestMapping("/api/trade")
 public class TradeController {

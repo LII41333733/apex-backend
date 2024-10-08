@@ -67,7 +67,7 @@ public class BaseTradeService extends TradeService<BaseTrade> implements TradeSe
             }
         }
 
-        if (trade.getTrimStatus() < 2 && (lastPrice >= trade.getTrim2Price())) {
+        if (trade.getTrimStatus() < 2 && (lastPrice >= trade.getTrim2Price()) && trade.getTrim2Quantity() > 0) {
             trade.setTrimStatus((byte) 2);
             logger.info("BaseTradeManager.watch: {}: Trim 2 Hit! Moving Stops: {}", riskType, id);
             placeMarketSell(trade, TRIM2);
@@ -76,7 +76,7 @@ public class BaseTradeService extends TradeService<BaseTrade> implements TradeSe
             logger.info("BaseTradeManager.watch: {}: (OPEN -> RUNNERS): {}", riskType, id);
         }
 
-        if (trade.getTrimStatus() > 1) {
+        if (trade.getTrimStatus() > 1 && trade.getRunnersQuantity() > 0) {
             runnerTrades.add(id);
             logger.info("BaseTradeManager.watch: {}: Last Price: {}", riskType, lastPrice);
             logger.info("BaseTradeManager.watch: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());

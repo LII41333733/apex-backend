@@ -13,9 +13,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-
+@CrossOrigin(origins = "http://localhost:5173")  // Apply CORS to all methods in this controller
 @RestController
-@RequestMapping("/api/")
+@RequestMapping("/api/auth")
 public class AuthController {
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
@@ -30,8 +30,10 @@ public class AuthController {
 
     public record UIToken(String token) {}
 
+    @CrossOrigin
     @PostMapping("/login")
     public ResponseEntity<UIToken> createAuthenticationToken(@RequestBody AuthRequest authRequest) {
+        logger.info("AuthController.createAuthenticationToken: Start");
        try {
            authenticationManager.authenticate(
                    new UsernamePasswordAuthenticationToken(authRequest.getUsername(), authRequest.getPassword())
