@@ -100,7 +100,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 30000)
     public void fetchOrdersScheduleActive() {
         if (!sessions.isEmpty()) {
             try {

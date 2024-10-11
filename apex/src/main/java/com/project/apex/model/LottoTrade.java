@@ -10,6 +10,9 @@ import static com.project.apex.util.Convert.roundedDouble;
 @Table(name = "lotto_trade")
 public class LottoTrade extends Trade {
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "riskType")
+    private RiskType riskType = RiskType.LOTTO;
     @Transient
     public final double tradePercentModifier = 0.05;
     @Transient
@@ -18,20 +21,13 @@ public class LottoTrade extends Trade {
     public final double trim1Percentage = 0.75;
     @Transient
     public final double initialRunnersFloorModifier = 1.20;
-    @Transient
-    private Double trim2Price;
-
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "riskType")
-    private final RiskType riskType = RiskType.LOTTO;
 
     public LottoTrade() {}
 
     @Override
     public void calculateStopsAndTrims() {
-        int quantity = this.getQuantity();  // Example number
-        int trim1Quantity = (int) Math.round(quantity * 0.7);
-        int runnersQuantity = quantity - trim1Quantity;
+        int trim1Quantity = (int) Math.round(this.getQuantity() * 0.7);
+        int runnersQuantity = this.getQuantity() - trim1Quantity;
         double ask = this.getFillPrice();
         double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
         double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
@@ -44,12 +40,17 @@ public class LottoTrade extends Trade {
         this.setFillPrice(ask);
         this.setTrim1Quantity(trim1Quantity);
         this.setRunnersQuantity(runnersQuantity);
-        this.setTradeAmount((int) (ask * 100) * this.getQuantity());
-        new Record<>("BaseTrade.calculateStopsAndTrims", this);
+        this.setTradeAmount(ask * 100 * this.getQuantity());
+        new Record<>("LottoTrade.calculateStopsAndTrims", this);
     }
 
+    @Override
     public RiskType getRiskType() {
         return riskType;
+    }
+
+    public void setRiskType(RiskType riskType) {
+        this.riskType = riskType;
     }
 
     @Override

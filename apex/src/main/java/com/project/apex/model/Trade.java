@@ -13,22 +13,22 @@ import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 public abstract class Trade {
 
     @Transient
-    public final double tradePercentModifier = 0.042;
+    public final double tradePercentModifier = 0;
     @Transient
-    public final double stopLossPercentage = 0.40;
+    public final double stopLossPercentage = 0;
     @Transient
-    public final double trim1Percentage = 0.25;
+    public final double trim1Percentage = 0;
     @Transient
-    public final double trim2Percentage = 0.50;
+    public final double trim2Percentage = 0;
     @Transient
-    public final double initialRunnersFloorModifier = 1.25;
+    public final double initialRunnersFloorModifier = 0;
 
     @Id
     @Column(name = "id")
     private Long id;
     @Column(name = "fill_order_id")
     private Long fillOrderId;
-    @Enumerated(EnumType.ORDINAL)
+    @Enumerated(EnumType.STRING)
     @Column(name = "riskType")
     private RiskType riskType;
     @Column(name = "pre_trade_balance")
@@ -50,9 +50,9 @@ public abstract class Trade {
     @Column(name = "max_price")
     private Double maxPrice = (double) 0;
     @Column(name = "pl")
-    private Integer pl = 0;
+    private Double pl = (double) 0;
     @Column(name = "trade_amount")
-    private Integer tradeAmount;
+    private Double tradeAmount;
     @Column(name = "last_price")
     private Double lastPrice;
     @Column(name = "final_amount")
@@ -218,19 +218,19 @@ public abstract class Trade {
         this.quantity = quantity;
     }
 
-    public Integer getPl() {
+    public Double getPl() {
         return pl;
     }
 
-    public void setPl(Integer pl) {
+    public void setPl(Double pl) {
         this.pl = pl;
     }
 
-    public Integer getTradeAmount() {
+    public Double getTradeAmount() {
         return tradeAmount;
     }
 
-    public void setTradeAmount(Integer tradeAmount) {
+    public void setTradeAmount(Double tradeAmount) {
         this.tradeAmount = tradeAmount;
     }
 

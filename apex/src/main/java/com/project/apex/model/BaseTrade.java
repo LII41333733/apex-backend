@@ -14,6 +14,9 @@ import static com.project.apex.util.Convert.roundedDouble;
 @Table(name = "base_trade")
 public class BaseTrade extends Trade {
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "risk_type")
+    private RiskType riskType = BASE;
     @Transient
     public final double tradePercentModifier = 0.08;
     @Transient
@@ -25,10 +28,6 @@ public class BaseTrade extends Trade {
     @Transient
     public final double initialRunnersFloorModifier = 1.25;
 
-    @Enumerated(EnumType.ORDINAL)
-    @Column(name = "risk_type")
-    private final RiskType riskType = BASE;
-
     public BaseTrade() {}
 
     @Override
@@ -38,35 +37,30 @@ public class BaseTrade extends Trade {
         int trim2Quantity = quantities.get(1);
         int runnersQuantity = quantities.get(2);
         double ask = this.getFillPrice();
-
-        if (this.getFillPrice() <= .1) {
-            double initialRunnersFloorPrice = .13;
-            this.setStopPrice(roundedDouble(ask / 2));
-            this.setTrim1Price(this.getStopPrice() + .11);
-            this.setTrim2Price(this.getStopPrice() + .16);
-            this.setRunnersFloorPrice(initialRunnersFloorPrice);
-            this.setRunnersDelta(roundedDouble(this.getTrim2Price() - initialRunnersFloorPrice));
-        } else {
-            double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
-            double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
-            double trim2Price = roundedDouble(ask * (1 + trim2Percentage));
-            double initialRunnersFloorPrice = roundedDouble(trim2Price / initialRunnersFloorModifier);
-            this.setStopPrice(stopPrice);
-            this.setTrim1Price(trim1Price);
-            this.setTrim2Price(trim2Price);
-            this.setRunnersFloorPrice(initialRunnersFloorPrice);
-            this.setRunnersDelta(roundedDouble(this.getTrim2Price() - initialRunnersFloorPrice));
-        }
+        double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
+        double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
+        double trim2Price = roundedDouble(ask * (1 + trim2Percentage));
+        double initialRunnersFloorPrice = roundedDouble(trim2Price / initialRunnersFloorModifier);
+        this.setStopPrice(stopPrice);
+        this.setTrim1Price(trim1Price);
+        this.setTrim2Price(trim2Price);
+        this.setRunnersFloorPrice(initialRunnersFloorPrice);
+        this.setRunnersDelta(roundedDouble(this.getTrim2Price() - initialRunnersFloorPrice));
         this.setFillPrice(ask);
         this.setTrim1Quantity(trim1Quantity);
         this.setTrim2Quantity(trim2Quantity);
         this.setRunnersQuantity(runnersQuantity);
-        this.setTradeAmount((int) (ask * 100) * this.getQuantity());
+        this.setTradeAmount(ask * 100 * this.getQuantity());
         new Record<>("BaseTrade.calculateStopsAndTrims", this);
     }
 
+    @Override
     public RiskType getRiskType() {
         return riskType;
+    }
+
+    public void setRiskType(RiskType riskType) {
+        this.riskType = riskType;
     }
 
     @Override
