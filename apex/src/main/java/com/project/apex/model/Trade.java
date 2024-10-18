@@ -13,7 +13,7 @@ import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 public abstract class Trade {
 
     @Transient
-    public final double tradePercentModifier = 0;
+    public final double tradeAmountPercentage = 0;
     @Transient
     public final double stopLossPercentage = 0;
     @Transient
@@ -21,13 +21,11 @@ public abstract class Trade {
     @Transient
     public final double trim2Percentage = 0;
     @Transient
-    public final double initialRunnersFloorModifier = 0;
+    public final double runnersFloorPercentage = 0;
 
     @Id
     @Column(name = "id")
     private Long id;
-    @Column(name = "fill_order_id")
-    private Long fillOrderId;
     @Enumerated(EnumType.STRING)
     @Column(name = "riskType")
     private RiskType riskType;
@@ -95,7 +93,6 @@ public abstract class Trade {
         this.setInitialAsk(initialAsk);
         this.setFillPrice(initialAsk);
         this.setQuantity(quantity);
-        this.setFillOrderId(fillOrderId);
     }
 
     public void initializeTrade(JsonNode fillOrder) {
@@ -304,7 +301,7 @@ public abstract class Trade {
 
     public void setTrim2Price(Double trim2Price) {
         this.trim2Price = trim2Price;
-    }
+    }BaseTradeSe
 
     public Double getRunnersDelta() {
         return runnersDelta;
@@ -330,32 +327,30 @@ public abstract class Trade {
         this.runnersQuantity = runnersQuantity;
     }
 
-    public Double getTrim1PriceFinal() {
-        return trim1PriceFinal;
-    }
-
     public void setTrim1PriceFinal(Double trim1PriceFinal) {
         this.trim1PriceFinal = trim1PriceFinal;
-    }
-
-    public Double getStopPriceFinal() {
-        return stopPriceFinal;
     }
 
     public void setStopPriceFinal(Double stopPriceFinal) {
         this.stopPriceFinal = stopPriceFinal;
     }
 
-    public Long getFillOrderId() {
-        return fillOrderId;
+    public Integer getTrim2Quantity() {
+        return trim2Quantity;
     }
 
-    public void setFillOrderId(Long fillOrderId) {
-        this.fillOrderId = fillOrderId;
+    public void setTrim2Quantity(Integer trim2Quantity) {
+        this.trim2Quantity = trim2Quantity;
     }
 
-    public double getTradePercentModifier() {
-        return tradePercentModifier;
+    public void setTrim2PriceFinal(Double trim2PriceFinal) {
+        this.trim2PriceFinal = trim2PriceFinal;
+    }
+
+    public void calculateStopsAndTrims() {}
+
+    public double getTradeAmountPercentage() {
+        return tradeAmountPercentage;
     }
 
     public double getStopLossPercentage() {
@@ -370,26 +365,8 @@ public abstract class Trade {
         return trim2Percentage;
     }
 
-    public double getInitialRunnersFloorModifier() {
-        return initialRunnersFloorModifier;
+    public double getRunnersFloorPercentage() {
+        return runnersFloorPercentage;
     }
-
-    public Integer getTrim2Quantity() {
-        return trim2Quantity;
-    }
-
-    public void setTrim2Quantity(Integer trim2Quantity) {
-        this.trim2Quantity = trim2Quantity;
-    }
-
-    public Double getTrim2PriceFinal() {
-        return trim2PriceFinal;
-    }
-
-    public void setTrim2PriceFinal(Double trim2PriceFinal) {
-        this.trim2PriceFinal = trim2PriceFinal;
-    }
-
-    public void calculateStopsAndTrims() {}
 
 }

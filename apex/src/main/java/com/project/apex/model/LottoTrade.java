@@ -14,13 +14,13 @@ public class LottoTrade extends Trade {
     @Column(name = "riskType")
     private RiskType riskType = RiskType.LOTTO;
     @Transient
-    public final double tradePercentModifier = 0.05;
+    private final double tradeAmountPercentage = 0.05;
     @Transient
-    public final double stopLossPercentage = 0.75;
+    private final double stopLossPercentage = 0.75;
     @Transient
-    public final double trim1Percentage = 0.75;
+    private final double trim1Percentage = 0.75;
     @Transient
-    public final double initialRunnersFloorModifier = 1.20;
+    private final double runnersFloorPercentage = 1.20;
 
     public LottoTrade() {}
 
@@ -31,7 +31,7 @@ public class LottoTrade extends Trade {
         double ask = this.getFillPrice();
         double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
         double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
-        double initialRunnersFloorPrice = roundedDouble(trim1Price / initialRunnersFloorModifier);
+        double initialRunnersFloorPrice = roundedDouble(trim1Price / runnersFloorPercentage);
         this.setStopPrice(stopPrice);
         this.setTrim1Price(trim1Price);
         this.setRunnersFloorPrice(initialRunnersFloorPrice);
@@ -49,13 +49,9 @@ public class LottoTrade extends Trade {
         return riskType;
     }
 
-    public void setRiskType(RiskType riskType) {
-        this.riskType = riskType;
-    }
-
     @Override
-    public double getTradePercentModifier() {
-        return tradePercentModifier;
+    public double getTradeAmountPercentage() {
+        return tradeAmountPercentage;
     }
 
     @Override
@@ -69,7 +65,12 @@ public class LottoTrade extends Trade {
     }
 
     @Override
-    public double getInitialRunnersFloorModifier() {
-        return initialRunnersFloorModifier;
+    public double getTrim2Percentage() {
+        return trim2Percentage;
+    }
+
+    @Override
+    public double getRunnersFloorPercentage() {
+        return runnersFloorPercentage;
     }
 }

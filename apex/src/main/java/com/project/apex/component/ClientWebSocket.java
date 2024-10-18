@@ -47,11 +47,11 @@ public class ClientWebSocket extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionEstablished(WebSocketSession session) throws IOException {
+    public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         logger.info("WebSocket connection established: " + session.getId());
         sessions.add(session);
-        sendData(new Record<>("balance", accountService.getBalanceData()));
         sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
+        sendData(new Record<>("balance", accountService.getBalanceData()));
         marketService.fetchMarketPrices();
         ordersService.fetchOrders();
     }
@@ -100,7 +100,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 30000)
+    @Scheduled(fixedRate = 4000)
     public void fetchOrdersScheduleActive() {
         if (!sessions.isEmpty()) {
             try {
@@ -114,7 +114,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 4000)
     public void fetchOrdersSchedule() {
         if (sessions.isEmpty()) {
             ordersService.fetchOrders();

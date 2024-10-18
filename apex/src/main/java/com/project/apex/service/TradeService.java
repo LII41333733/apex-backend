@@ -23,11 +23,11 @@ import static com.project.apex.util.TradeOrder.isRejected;
 public abstract class TradeService<T extends Trade> {
 
     private static final Logger logger = LoggerFactory.getLogger(TradeService.class);
-    private final AccountService accountService;
+    private final AccountService<T> accountService;
     private final MarketService marketService;
     private final TradeRepository<T> tradeRepository;
 
-    public TradeService(AccountService accountService,
+    public TradeService(AccountService<T> accountService,
                         MarketService marketService,
                         TradeRepository<T> tradeRepository) {
         this.accountService = accountService;
@@ -39,78 +39,67 @@ public abstract class TradeService<T extends Trade> {
         return tradeRepository.findAll();
     }
 
-    public T placeTrade(T trade, BuyDataRecord buyDataRecord) {
+    public void placeTrade(T trade, BuyDataRecord buyDataRecord) throws Exception {
         RiskType riskType = buyDataRecord.riskType();
         String riskTypeName = riskType.name();
+        String error = "";
 
-        try {
-            Long id = Convert.getMomentAsCode();
-            logger.info(riskTypeName + ".placeFill: Start: {}", id);
-            Balance balance = accountService.getBalanceData();
-            double totalEquity = balance.getTotalEquity();
-            logger.info("Total Equity: {}", totalEquity);
-            double totalCash = balance.getTotalCash();
-            logger.info("Total Cash: {}", totalCash);
-            int tradeAllotment = (int) Math.floor(totalEquity * trade.getTradePercentModifier());
-            logger.info("Trade Allotment: {}", tradeAllotment);
-            logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
-            if (tradeAllotment < totalCash) {
-                double ask = buyDataRecord.price();
-                logger.info("Ask: {}", ask);
-                double contractCost = ask * 100;
-                logger.info("Contract Cost: {}", contractCost);
-                int quantity = (int) Math.floor(tradeAllotment / contractCost);
-                logger.info("Quantity: {}", quantity);
-                Map<String, String> parameters = new HashMap<>();
-                parameters.put("class", "option");
-                parameters.put("duration", "day");
-                parameters.put("quantity", String.valueOf(quantity));
-                parameters.put("side", "buy_to_open");
-                parameters.put("option_symbol", buyDataRecord.option());
-                parameters.put("price", String.valueOf(ask));
-                parameters.put("type", "limit");
-                parameters.put("tag", riskTypeName + "-" + id + "-" + TradeLeg.FILL);
+        Long id = Convert.getMomentAsCode();
+        logger.info("TradeService.placeFill: Start: {}", id);
+        Balance balance = accountService.getBalanceData();
+        double totalEquity = balance.getTotalEquity();
+        logger.info("Total Equity: {}", totalEquity);
+        double totalCash = balance.getTotalCash();
+        logger.info("Total Cash: {}", totalCash);
+        int tradeAllotment = (int) Math.floor(totalEquity * trade.getTradeAmountPercentage());
+        logger.info("Trade Allotment: {}", tradeAllotment);
+        logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
+        if (tradeAllotment < totalCash) {
+            double ask = buyDataRecord.price();
+            logger.info("Ask: {}", ask);
+            double contractCost = ask * 100;
+            logger.info("Contract Cost: {}", contractCost);
+            int quantity = (int) Math.floor(tradeAllotment / contractCost);
+            logger.info("Quantity: {}", quantity);
+            Map<String, String> parameters = new HashMap<>();
+            parameters.put("class", "option");
+            parameters.put("duration", "day");
+            parameters.put("quantity", String.valueOf(quantity));
+            parameters.put("side", "buy_to_open");
+            parameters.put("option_symbol", buyDataRecord.option());
+            parameters.put("price", String.valueOf(ask));
+            parameters.put("type", "limit");
+            parameters.put("tag", riskTypeName + "-" + id + "-" + TradeLeg.FILL);
 
-                if (quantity < 1) {
-                    throw new Exception("Not enough BP for this trade");
-                }
-
-                new Record<>(riskTypeName + ".placeFill: Fill Parameters", new OrderFillRecord(
-                        id,
-                        totalEquity,
-                        totalCash,
-                        tradeAllotment,
-                        buyDataRecord.price(),
-                        contractCost,
-                        quantity,
-                        parameters
-                ));
-
-                JsonNode json = accountService.post("/orders", parameters);
-                JsonNode jsonNode = json.get("order");
-
-                if (isOk(jsonNode)) {
-                    logger.info("{}.placeFill: Fill Successful: {}", riskTypeName, id);
-                    Long orderId = jsonNode.get("id").asLong();
-                    trade.setId(id);
-                    trade.setPreTradeBalance(totalEquity);
-                    trade.setInitialAsk(ask);
-                    trade.setFillPrice(ask);
-                    trade.setQuantity(quantity);
-                    trade.setFillOrderId(orderId);
-                    trade.calculateStopsAndTrims();
-                    tradeRepository.save(trade);
-                } else {
-                    logger.error("{}.placeFill: Fill UnSuccessful: {}", riskTypeName, id);
-                }
-            } else {
-                logger.error(riskTypeName + ".placeFill: Not enough cash available to make trade: {}", id);
+            if (quantity < 1) {
+                throw new Exception("Not enough BP for this trade");
             }
-        } catch (Exception e) {
-            logger.error(riskTypeName + ".placeFill: ERROR: Exception", e);
-        }
 
-        return trade;
+            new Record<>("TradeService.placeFill: Fill Parameters", new OrderFillRecord(
+                    id,
+                    totalEquity,
+                    totalCash,
+                    tradeAllotment,
+                    buyDataRecord.price(),
+                    contractCost,
+                    quantity,
+                    parameters
+            ));
+
+            trade.setId(id);
+            trade.setPreTradeBalance(totalEquity);
+            trade.setInitialAsk(ask);
+            trade.setFillPrice(ask);
+            trade.setQuantity(quantity);
+            trade.calculateStopsAndTrims();
+
+            accountService.placeOrder(trade, parameters,"TradeService.placeFill");
+            tradeRepository.save(trade);
+        } else {
+            error = "TradeService.placeFill: Not enough cash available to make trade: {}";
+            logger.error(error, id);
+            throw new Exception(error);
+        }
     }
 
     public void modifyTrade(ModifyTradeRecord modifyTradeRecord) {
@@ -121,6 +110,7 @@ public abstract class TradeService<T extends Trade> {
 
         if (tradeOpt.isPresent()) {
             T trade = tradeOpt.get();
+
             switch (tradeLeg) {
                 case STOP -> trade.setStopPrice(price);
                 case TRIM1 -> trade.setTrim1Price(price);
@@ -210,43 +200,37 @@ public abstract class TradeService<T extends Trade> {
                     T trade = tradeOpt.get();
                     JsonNode fillOrder = tradeLegMap.get(FILL);
                     JsonNode stopOrder = tradeLegMap.get(STOP);
-                    boolean hasFillOrder = fillOrder != null;
                     boolean hasStopOrder = stopOrder != null;
                     boolean isOpen = trade.isOpen() || trade.hasRunners();
 
-                    if (hasFillOrder) {
-                        if (trade.getFillOrderId() == null) {
-                            trade.setFillOrderId(fillOrder.get("id").asLong());
-                        }
+                    if (trade.isNew()) {
+                        logger.info("TradeManager.watch: {}: Initializing Trade (NEW): {}", riskType, id);
+                        trade.initializeTrade(fillOrder);
+                        trade.setStatus(PENDING);
+                        logger.info("TradeManager.watch: {}: (NEW -> PENDING): {}", riskType, id);
+                    }
 
-                        if (trade.isNew()) {
-                            logger.info("TradeManager.watch: {}: Initializing Trade (NEW): {}", riskType, id);
+                    if (trade.isPending()) {
+                        if (isFilled(fillOrder)) {
+                            logger.info("TradeManager.watch: {}: Order Filled (PENDING): {}", riskType, id);
+                            logger.info("TradeManager.watch: {}: Initializing Trade (PENDING): {}", riskType, id);
                             trade.initializeTrade(fillOrder);
-                            trade.setStatus(PENDING);
-                            logger.info("TradeManager.watch: {}: (NEW -> PENDING): {}", riskType, id);
-                        }
-
-                        if (trade.isPending()) {
-                            if (isFilled(fillOrder)) {
-                                logger.info("TradeManager.watch: {}: Order Filled (PENDING): {}", riskType, id);
-                                logger.info("TradeManager.watch: {}: Initializing Trade (PENDING): {}", riskType, id);
-                                trade.initializeTrade(fillOrder);
-                                trade.setStatus(OPEN);
-                                logger.info("TradeManager.watch: {}: (PENDING -> OPEN): {}", riskType, id);
-                            } else if (isCanceled(fillOrder)) {
-                                canceledTrades.add(id);
-                                logger.info("TradeManager.watch: {}: Order Canceled: {}", riskType, id);
-                                trade.setStatus(CANCELED);
-                                logger.info("TradeManager.watch: {}: (PENDING -> CANCELED): {}", riskType, id);
-                            } else if (isRejected(fillOrder)) {
-                                rejectedTrades.add(id);
-                                logger.info("TradeManager.watch: {}: Order Rejected: {}", riskType, id);
-                            } else {
-                                pendingTrades.add(id);
-                                logger.info("TradeManager.watch: {}: Order Unfilled (PENDING): {}", riskType, id);
-                            }
+                            trade.setStatus(OPEN);
+                            logger.info("TradeManager.watch: {}: (PENDING -> OPEN): {}", riskType, id);
+                        } else if (isCanceled(fillOrder)) {
+                            canceledTrades.add(id);
+                            logger.info("TradeManager.watch: {}: Order Canceled: {}", riskType, id);
+                            trade.setStatus(CANCELED);
+                            logger.info("TradeManager.watch: {}: (PENDING -> CANCELED): {}", riskType, id);
+                        } else if (isRejected(fillOrder)) {
+                            rejectedTrades.add(id);
+                            logger.info("TradeManager.watch: {}: Order Rejected: {}", riskType, id);
+                        } else {
+                            pendingTrades.add(id);
+                            logger.info("TradeManager.watch: {}: Order Unfilled (PENDING): {}", riskType, id);
                         }
                     }
+
 
                     if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
                         setLastAndMaxPrices(trade);
@@ -279,7 +263,7 @@ public abstract class TradeService<T extends Trade> {
 
                     allTrades.put(id, trade);
                     tradeRepository.save(trade);
-                    logger.debug("TradeManager.watch: {}: Finish: Saving Trade to Repo", riskType);
+                    logger.debug("TradeManager.watch: {}: Finish: Saving Trade to Repo: {}", riskType, id);
                 }
             }
         }

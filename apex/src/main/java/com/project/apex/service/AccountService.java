@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.config.EnvConfig;
 import com.project.apex.data.account.AccountBalance;
 import com.project.apex.data.account.Balance;
+import com.project.apex.model.Trade;
 import com.project.apex.repository.AccountBalanceRepository;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
@@ -19,9 +20,10 @@ import java.io.IOException;
 import java.util.Map;
 
 import static com.project.apex.util.HttpRequest.*;
+import static com.project.apex.util.TradeOrder.isOk;
 
 @Service
-public class AccountService {
+public class AccountService<T extends Trade> {
 
     private static final Logger logger = LoggerFactory.getLogger(AccountService.class);
     private final EnvConfig envConfig;
@@ -104,7 +106,7 @@ public class AccountService {
         }
     }
 
-    public Balance getBalanceData() throws IOException {
+    public Balance getBalanceData() throws Exception {
         logger.debug("AccountService.getBalanceData: Retrieving balance data");
         Balance balance = new Balance();
         JsonNode balancesJson = get("/balances");
@@ -130,12 +132,30 @@ public class AccountService {
             balance.setUnclearedFunds(balances.get("uncleared_funds").asDouble());
             return balance;
         } else {
-            logger.info("AccountService.getBalanceData: Balance Data returned null");
-            return balance;
+            String error = "AccountService.getBalanceData: Balance Data returned null";
+            logger.error(error);
+            throw new Exception(error);
         }
     }
 
     public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
         accountBalanceRepository.save(accountBalance);
+    }
+
+    public void placeOrder(T trade, Map<String, String> parameters, String action) throws Exception {
+        JsonNode json = post("/orders", parameters);
+        JsonNode order = json.get("order");
+        JsonNode err = json.get("errors").get("error");
+        String err1 = err.get(0).asText();
+        String err2 = err.get(1).asText();
+
+        if (isOk(order)) {
+            String orderId = order.get("id").asText();
+            logger.info("{}: Order Successful: {} Order Id: {}", action, trade.getId(), orderId);
+        } else {
+            String error = "{}: Order UnSuccessful: {} Tradier Error: {} - {}";
+            logger.error(error, action, trade.getId(), err1, err2);
+            throw new Exception(error);
+        }
     }
 }

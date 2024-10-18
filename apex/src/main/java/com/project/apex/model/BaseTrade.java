@@ -4,9 +4,7 @@ import com.project.apex.data.trades.RiskType;
 import com.project.apex.util.Quantities;
 import com.project.apex.util.Record;
 import jakarta.persistence.*;
-
 import java.util.List;
-
 import static com.project.apex.data.trades.RiskType.BASE;
 import static com.project.apex.util.Convert.roundedDouble;
 
@@ -18,15 +16,15 @@ public class BaseTrade extends Trade {
     @Column(name = "risk_type")
     private RiskType riskType = BASE;
     @Transient
-    public final double tradePercentModifier = 0.08;
+    private final double tradeAmountPercentage = 0.08;
     @Transient
-    public final double stopLossPercentage = 0.40;
+    private final double stopLossPercentage = 0.40;
     @Transient
-    public final double trim1Percentage = 0.25;
+    private final double trim1Percentage = 0.25;
     @Transient
-    public final double trim2Percentage = 0.50;
+    private final double trim2Percentage = 0.50;
     @Transient
-    public final double initialRunnersFloorModifier = 1.25;
+    private final double runnersFloorPercentage = 1.25;
 
     public BaseTrade() {}
 
@@ -40,7 +38,7 @@ public class BaseTrade extends Trade {
         double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
         double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
         double trim2Price = roundedDouble(ask * (1 + trim2Percentage));
-        double initialRunnersFloorPrice = roundedDouble(trim2Price / initialRunnersFloorModifier);
+        double initialRunnersFloorPrice = roundedDouble(trim2Price / runnersFloorPercentage);
         this.setStopPrice(stopPrice);
         this.setTrim1Price(trim1Price);
         this.setTrim2Price(trim2Price);
@@ -59,13 +57,9 @@ public class BaseTrade extends Trade {
         return riskType;
     }
 
-    public void setRiskType(RiskType riskType) {
-        this.riskType = riskType;
-    }
-
     @Override
-    public double getTradePercentModifier() {
-        return tradePercentModifier;
+    public double getTradeAmountPercentage() {
+        return tradeAmountPercentage;
     }
 
     @Override
@@ -84,7 +78,7 @@ public class BaseTrade extends Trade {
     }
 
     @Override
-    public double getInitialRunnersFloorModifier() {
-        return initialRunnersFloorModifier;
+    public double getRunnersFloorPercentage() {
+        return runnersFloorPercentage;
     }
 }

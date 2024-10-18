@@ -4,7 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.component.ClientWebSocket;
 import com.project.apex.data.trades.*;
 import com.project.apex.data.trades.TradeRecord;
+import com.project.apex.model.BaseTrade;
+import com.project.apex.model.LottoTrade;
 import com.project.apex.model.Trade;
+import com.project.apex.model.VisionTrade;
 import com.project.apex.util.Record;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -14,8 +17,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import java.util.function.Consumer;
 
-import static com.project.apex.data.trades.RiskType.BASE;
-import static com.project.apex.data.trades.RiskType.LOTTO;
+import static com.project.apex.data.trades.RiskType.*;
 
 @Service
 public class OrdersService {
@@ -50,11 +52,13 @@ public class OrdersService {
                 RiskMap ordersByRiskType = handleMapOrdersByRiskType(orders);
                 TradeMap baseTradeMap = ordersByRiskType.get(BASE);
                 TradeMap lottoTradeMap = ordersByRiskType.get(LOTTO);
-                TradeRecord<Trade> baseTradeRecord = tradeFactory.watch(BASE, baseTradeMap);
-                TradeRecord<Trade> lottoTradeRecord = tradeFactory.watch(LOTTO, lottoTradeMap);
+                TradeMap visionTradeMap = ordersByRiskType.get(VISION);
+                TradeRecord<BaseTrade> baseTradeRecord = tradeFactory.watch(BASE, baseTradeMap);
+                TradeRecord<LottoTrade> lottoTradeRecord = tradeFactory.watch(LOTTO, lottoTradeMap);
+                TradeRecord<VisionTrade> visionTradeRecord = tradeFactory.watch(VISION, visionTradeMap);
 
                 if (clientWebSocket.isConnected()) {
-                    clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord, lottoTradeRecord)));
+                    clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord, lottoTradeRecord, visionTradeRecord)));
                 }
             }
         } catch (Exception e) {

@@ -63,10 +63,6 @@
 //                    boolean hasStopOrder = stopOrder != null;
 //
 //                    if (hasFillOrder) {
-//                        if (trade.getFillOrderId() == null) {
-//                            trade.setFillOrderId(fillOrder.get("id").asLong());
-//                        }
-//
 //                        if (trade.isNew()) {
 //                            logger.info("TradeManager.watch: {}: Initializing Trade (NEW): {}", riskType, id);
 //                            trade.initializeTrade(fillOrder);
