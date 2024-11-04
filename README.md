@@ -6,7 +6,7 @@ This application is the culmination of the passion I have for both web developme
 
 Currently this application is only available for personal use and because each account must be connected with a Tradier Brokerage, demos are made available using the sandbox environment by [request only](#contact). This product is in its infancy and will be built upon for as long as I pursue trading.
 
-## Back-end
+## Backend
 
 The back-end was built on a RESTful API architechture using Java with Spring Boot. It integrates a MySQL database for data persistence, ORM Mapping with Hibernate and JWT to secure the API. The application leverages WebSockets to stream real-time market data to the client.
 
@@ -14,7 +14,7 @@ All trades are placed using the [Tradier Brokerage API](https://documentation.tr
 
 [Repo](https://github.com/LII41333733/apex-backend)
 
-## Front-end
+## Frontend
 
 The front-end was written in TypeScript using React supported by Vite. State management uses Redux Toolkit; data fetching and caching uses RTK Query.
 
