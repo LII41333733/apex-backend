@@ -1,33 +1,31 @@
 package com.project.apex.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.project.apex.data.trades.RiskType;
 import com.project.apex.data.trades.TradeStatus;
-import com.project.apex.util.TradeOrder;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Arrays;
+
 import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 
 @MappedSuperclass
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "riskType")  // "type" should match the JSON field identifying the type
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = BaseTrade.class, name = "BASE"),
+        @JsonSubTypes.Type(value = LottoTrade.class, name = "LOTTO"),
+        @JsonSubTypes.Type(value = VisionTrade.class, name = "VISION"),
+        @JsonSubTypes.Type(value = HeroTrade.class, name = "HERO")
+})
 public abstract class Trade {
-
-    @Transient
-    public final double tradeAmountPercentage = 0;
-    @Transient
-    public final double stopLossPercentage = 0;
-    @Transient
-    public final double trim1Percentage = 0;
-    @Transient
-    public final double trim2Percentage = 0;
-    @Transient
-    public final double runnersFloorPercentage = 0;
 
     @Id
     @Column(name = "id")
     private Long id;
-    @Enumerated(EnumType.STRING)
-    @Column(name = "riskType")
+    @Column(name = "risk_type")
     private RiskType riskType;
     @Column(name = "pre_trade_balance")
     private Double preTradeBalance;
@@ -46,327 +44,223 @@ public abstract class Trade {
     @Column(name = "close_date")
     private LocalDateTime closeDate;
     @Column(name = "max_price")
-    private Double maxPrice = (double) 0;
+    private Double maxPrice = 0.0;
     @Column(name = "pl")
-    private Double pl = (double) 0;
+    private Integer pl = 0;
     @Column(name = "trade_amount")
-    private Double tradeAmount;
+    private Integer tradeAmount;
     @Column(name = "last_price")
-    private Double lastPrice;
+    private Double lastPrice = 0.0;
     @Column(name = "final_amount")
     private Integer finalAmount = 0;
     @Enumerated(EnumType.ORDINAL)
     @Column(name = "status")
     private TradeStatus status = NEW;
     @Column(name = "trim_status")
-    private byte trimStatus = 0;
+    private int trimStatus = 0;
     @Column(name = "stop_price")
     private Double stopPrice;
-    @Column(name = "trim1_price")
-    private Double trim1Price;
-    @Column(name = "trim2_price")
-    private Double trim2Price;
+    @Column(name = "stop_price_final")
+    private Double stopPriceFinal = 0.0;
     @Column(name = "runners_floor_price")
     private Double runnersFloorPrice;
     @Column(name = "runners_delta")
     private Double runnersDelta;
-    @Column(name = "trim1_price_final")
-    private Double trim1PriceFinal = 0.0;
-    @Column(name = "stop_price_final")
-    private Double stopPriceFinal = 0.0;
     @Column(name = "quantity")
     private Integer quantity = 0;
-    @Column(name = "trim1_quantity")
-    private Integer trim1Quantity = 0;
     @Column(name = "runners_quantity")
     private Integer runnersQuantity = 0;
-    @Column(name = "trim2_quantity")
-    private Integer trim2Quantity = 0;
-    @Column(name = "trim2_price_final")
-    private Double trim2PriceFinal = 0.0;
 
-    public Trade() {}
+    @JsonIgnore
+    @Transient
+    private int[] demoOutcomePercentages = {};
+    @JsonIgnore
+    @Transient
+    private double tradeAmountPercentage = 0;
 
-    public Trade(Long id, double totalEquity, double initialAsk, int quantity, Long fillOrderId) {
-        this.setId(id);
-        this.setPreTradeBalance(totalEquity);
-        this.setInitialAsk(initialAsk);
-        this.setFillPrice(initialAsk);
-        this.setQuantity(quantity);
+    public Trade(RiskType riskType,
+                 double tradeAmountPercentage,
+                 int[] demoOutcomePercentages) {
+        this.riskType = riskType;
+        this.tradeAmountPercentage = tradeAmountPercentage;
+        this.demoOutcomePercentages = demoOutcomePercentages;
     }
 
-    public void initializeTrade(JsonNode fillOrder) {
-        this.setFillPrice(
-                TradeOrder.isFilled(fillOrder)
-                    ? TradeOrder.getAverageFillPrice(fillOrder)
-                    : TradeOrder.getPrice(fillOrder)
-        );
-        this.setOpenDate(TradeOrder.getCreateDate(fillOrder));
-        this.setOptionSymbol(TradeOrder.getOptionSymbol(fillOrder));
-        this.setSymbol(TradeOrder.getSymbol(fillOrder));
-        this.calculateStopsAndTrims();
-    }
-
+    @JsonIgnore
+    @Transient
     public boolean isPending() {
         return this.getStatus() == PENDING;
     }
-
+    @JsonIgnore
+    @Transient
     public boolean isNew() {
         return this.getStatus() == NEW;
     }
-
+    @JsonIgnore
+    @Transient
     public boolean isOpen() {
         return this.getStatus() == OPEN;
     }
-
+    @JsonIgnore
+    @Transient
     public boolean hasRunners() {
         return this.getStatus() == RUNNERS;
     }
-
+    @JsonIgnore
+    @Transient
     public boolean isFilled() {
         return this.getStatus() == FILLED;
     }
-
+    @JsonIgnore
+    @Transient
     public boolean isFinalized() {
         return this.getStatus() == FINALIZED;
+    }
+    @JsonIgnore
+    @Transient
+    public double getTradeAmountPercentage() {
+        return tradeAmountPercentage;
+    }
+    @JsonIgnore
+    @Transient
+    public int[] getDemoOutcomePercentages() {
+        return demoOutcomePercentages;
     }
 
     public Long getId() {
         return id;
     }
-
     public void setId(Long id) {
         this.id = id;
     }
-
-    public RiskType getRiskType() {
-        return riskType;
-    }
-
     public Double getPreTradeBalance() {
         return preTradeBalance;
     }
-
     public void setPreTradeBalance(Double preTradeBalance) {
         this.preTradeBalance = preTradeBalance;
     }
-
     public Double getPostTradeBalance() {
         return postTradeBalance;
     }
-
     public void setPostTradeBalance(Double postTradeBalance) {
         this.postTradeBalance = postTradeBalance;
     }
-
     public String getOptionSymbol() {
         return optionSymbol;
     }
-
     public void setOptionSymbol(String optionSymbol) {
         this.optionSymbol = optionSymbol;
     }
-
     public String getSymbol() {
         return symbol;
     }
-
     public void setSymbol(String symbol) {
         this.symbol = symbol;
     }
-
     public Double getFillPrice() {
         return fillPrice;
     }
-
     public void setFillPrice(Double fillPrice) {
         this.fillPrice = fillPrice;
     }
-
     public LocalDateTime getOpenDate() {
         return openDate;
     }
-
     public void setOpenDate(LocalDateTime openDate) {
         this.openDate = openDate;
     }
-
     public LocalDateTime getCloseDate() {
         return closeDate;
     }
-
     public void setCloseDate(LocalDateTime closeDate) {
         this.closeDate = closeDate;
     }
-
     public Double getMaxPrice() {
         return maxPrice;
     }
-
     public void setMaxPrice(Double maxPrice) {
         this.maxPrice = maxPrice;
     }
-
     public Integer getQuantity() {
         return quantity;
     }
-
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
     }
-
-    public Double getPl() {
+    public Integer getPl() {
         return pl;
     }
-
-    public void setPl(Double pl) {
+    public void setPl(Integer pl) {
         this.pl = pl;
     }
-
-    public Double getTradeAmount() {
+    public Integer getTradeAmount() {
         return tradeAmount;
     }
-
-    public void setTradeAmount(Double tradeAmount) {
+    public void setTradeAmount(Integer tradeAmount) {
         this.tradeAmount = tradeAmount;
     }
-
     public Double getLastPrice() {
         return lastPrice;
     }
-
     public void setLastPrice(Double lastPrice) {
         this.lastPrice = lastPrice;
     }
-
     public Integer getFinalAmount() {
         return finalAmount;
     }
-
     public void setFinalAmount(Integer finalAmount) {
         this.finalAmount = finalAmount;
     }
-
     public Double getInitialAsk() {
         return initialAsk;
     }
-
     public void setInitialAsk(Double initialAsk) {
         this.initialAsk = initialAsk;
     }
-
     public TradeStatus getStatus() {
         return status;
     }
-
     public void setStatus(TradeStatus status) {
         this.status = status;
     }
-
-    public byte getTrimStatus() {
+    public int getTrimStatus() {
         return trimStatus;
     }
-
-    public void setTrimStatus(byte trimStatus) {
+    public void setTrimStatus(int trimStatus) {
         this.trimStatus = trimStatus;
     }
-
     public Double getStopPrice() {
         return stopPrice;
     }
-
     public void setStopPrice(Double stopPrice) {
         this.stopPrice = stopPrice;
     }
-
     public Double getRunnersFloorPrice() {
         return runnersFloorPrice;
     }
-
     public void setRunnersFloorPrice(Double runnersFloorPrice) {
         this.runnersFloorPrice = runnersFloorPrice;
     }
-
-    public Double getTrim1Price() {
-        return trim1Price;
-    }
-
-    public void setTrim1Price(Double trim1Price) {
-        this.trim1Price = trim1Price;
-    }
-
-    public Double getTrim2Price() {
-        return trim2Price;
-    }
-
-    public void setTrim2Price(Double trim2Price) {
-        this.trim2Price = trim2Price;
-    }BaseTradeSe
-
     public Double getRunnersDelta() {
         return runnersDelta;
     }
-
     public void setRunnersDelta(Double runnersDelta) {
         this.runnersDelta = runnersDelta;
     }
-
-    public Integer getTrim1Quantity() {
-        return trim1Quantity;
-    }
-
-    public void setTrim1Quantity(Integer trim1Quantity) {
-        this.trim1Quantity = trim1Quantity;
-    }
-
     public Integer getRunnersQuantity() {
         return runnersQuantity;
     }
-
     public void setRunnersQuantity(Integer runnersQuantity) {
         this.runnersQuantity = runnersQuantity;
     }
-
-    public void setTrim1PriceFinal(Double trim1PriceFinal) {
-        this.trim1PriceFinal = trim1PriceFinal;
-    }
-
     public void setStopPriceFinal(Double stopPriceFinal) {
         this.stopPriceFinal = stopPriceFinal;
     }
-
-    public Integer getTrim2Quantity() {
-        return trim2Quantity;
+    public Double getStopPriceFinal() {
+        return stopPriceFinal;
     }
-
-    public void setTrim2Quantity(Integer trim2Quantity) {
-        this.trim2Quantity = trim2Quantity;
-    }
-
-    public void setTrim2PriceFinal(Double trim2PriceFinal) {
-        this.trim2PriceFinal = trim2PriceFinal;
-    }
-
-    public void calculateStopsAndTrims() {}
-
-    public double getTradeAmountPercentage() {
-        return tradeAmountPercentage;
-    }
-
-    public double getStopLossPercentage() {
-        return stopLossPercentage;
-    }
-
-    public double getTrim1Percentage() {
-        return trim1Percentage;
-    }
-
-    public double getTrim2Percentage() {
-        return trim2Percentage;
-    }
-
-    public double getRunnersFloorPercentage() {
-        return runnersFloorPercentage;
+    public RiskType getRiskType() {
+        return riskType;
     }
 
 }

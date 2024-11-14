@@ -7,16 +7,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PreDestroy;
-import jakarta.annotation.PostConstruct;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
 
 @Component
 public class MarketStream {
@@ -35,62 +30,27 @@ public class MarketStream {
         this.marketService = marketService;
     }
 
-    @PostConstruct
-    public void connectAndStartStream() {
+    public void startStream() {
+        stopAllStreams();  // Ensure previous WebSocket is closed
+
         try {
-            createNewWebSocketClient();
-            new Thread(() -> {
-                try {
-                    webSocketClient.connectBlocking(); // Blocking connect moved to a separate thread
-                } catch (InterruptedException e) {
-                    logger.error("Failed to connect WebSocket", e);
-                    Thread.currentThread().interrupt(); // Restore interrupted state
-                }
-            }).start();
-        } catch (URISyntaxException e) {
-            logger.error("WebSocket URI is invalid", e);
-        } catch (Exception e) {
-            logger.error("Error during WebSocket connection", e);
+            createNewWebSocketClient();  // Create new WebSocket instance
+            webSocketClient.connectBlocking();  // Blocking connection setup
+
+            String message = marketService.buildOptionsStreamCall();  // Get fresh message
+            webSocketClient.send(message);  // Send the new message instance
+        } catch (URISyntaxException | InterruptedException e) {
+            logger.error("Failed to start a new WebSocket stream", e);
+            Thread.currentThread().interrupt();
         }
     }
 
-    public void sendMessage(String message) {
-        if (webSocketClient != null && webSocketClient.isOpen()) {
-            webSocketClient.send(message);
-        } else {
-            logger.info("WebSocket is not open. Cannot send message.");
-        }
-    }
-
-    public void reconnect() throws URISyntaxException {
-        createNewWebSocketClient();
-        new Thread(() -> {
-            try {
-                webSocketClient.connectBlocking(); // Blocking connect in a new thread
-                String message = marketService.buildOptionsStreamCall();
-                this.sendMessage(message);
-            } catch (InterruptedException e) {
-                logger.error("Failed to reconnect WebSocket", e);
-                Thread.currentThread().interrupt(); // Restore interrupted state
-            }
-        }).start();
-    }
-
-    public boolean isConnected() {
-        return webSocketClient != null && webSocketClient.isOpen();
-    }
-
-    // New method to stop all streams
     public void stopAllStreams() {
         if (webSocketClient != null) {
-            webSocketClient.close();  // Close the WebSocket connection
-            logger.info("WebSocket connection closed.");
+            webSocketClient.close();
+            webSocketClient = null;  // Nullify the instance
+            logger.info("Previous WebSocket connection closed.");
         }
-    }
-
-    @PreDestroy
-    public void onDestroy() {
-        stopAllStreams();  // Ensure all streams are stopped when the bean is destroyed
     }
 
     private void createNewWebSocketClient() throws URISyntaxException {
@@ -104,8 +64,7 @@ public class MarketStream {
 
             @Override
             public void onMessage(String message) {
-//                logger.info("Market Stream message: " + message);
-
+                logger.debug("Market Stream message: " + message);
                 try {
                     JsonNode jsonNode = new ObjectMapper().readTree(message);
                     String type = jsonNode.get("type").asText();

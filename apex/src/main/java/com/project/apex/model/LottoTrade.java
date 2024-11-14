@@ -1,76 +1,68 @@
 package com.project.apex.model;
 
-import com.project.apex.data.trades.RiskType;
-import com.project.apex.util.Record;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.project.apex.interfaces.Trim1Tradeable;
 import jakarta.persistence.*;
-
-import static com.project.apex.util.Convert.roundedDouble;
+import static com.project.apex.data.trades.RiskType.LOTTO;
 
 @Entity
 @Table(name = "lotto_trade")
-public class LottoTrade extends Trade {
+public class LottoTrade extends Trade implements Trim1Tradeable {
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "riskType")
-    private RiskType riskType = RiskType.LOTTO;
-    @Transient
-    private final double tradeAmountPercentage = 0.05;
+    @Column(name = "trim1_price")
+    private Double trim1Price;
+    @Column(name = "trim1_price_final")
+    private Double trim1PriceFinal = 0.0;
+    @Column(name = "trim1_quantity")
+    private Integer trim1Quantity = 0;
+
     @Transient
     private final double stopLossPercentage = 0.75;
     @Transient
     private final double trim1Percentage = 0.75;
     @Transient
-    private final double runnersFloorPercentage = 1.20;
+    private final double runnersFloorPercentage = 0.25;
 
-    public LottoTrade() {}
-
-    @Override
-    public void calculateStopsAndTrims() {
-        int trim1Quantity = (int) Math.round(this.getQuantity() * 0.7);
-        int runnersQuantity = this.getQuantity() - trim1Quantity;
-        double ask = this.getFillPrice();
-        double stopPrice = roundedDouble(ask * (1 - stopLossPercentage));
-        double trim1Price = roundedDouble(ask * (1 + trim1Percentage));
-        double initialRunnersFloorPrice = roundedDouble(trim1Price / runnersFloorPercentage);
-        this.setStopPrice(stopPrice);
-        this.setTrim1Price(trim1Price);
-        this.setRunnersFloorPrice(initialRunnersFloorPrice);
-        this.setRunnersDelta(roundedDouble(this.getTrim1Price() - initialRunnersFloorPrice));
-
-        this.setFillPrice(ask);
-        this.setTrim1Quantity(trim1Quantity);
-        this.setRunnersQuantity(runnersQuantity);
-        this.setTradeAmount(ask * 100 * this.getQuantity());
-        new Record<>("LottoTrade.calculateStopsAndTrims", this);
+    public LottoTrade() {
+        super(LOTTO, 0.04, new int[]{ 75, 40 });
     }
 
     @Override
-    public RiskType getRiskType() {
-        return riskType;
+    public Double getTrim1Price() {
+        return trim1Price;
     }
-
     @Override
-    public double getTradeAmountPercentage() {
-        return tradeAmountPercentage;
+    public void setTrim1Price(Double trim1Price) {
+        this.trim1Price = trim1Price;
     }
-
-    @Override
+    @JsonIgnore
+    @Transient
     public double getStopLossPercentage() {
         return stopLossPercentage;
     }
-
-    @Override
+    @JsonIgnore
+    @Transient
     public double getTrim1Percentage() {
         return trim1Percentage;
     }
-
-    @Override
-    public double getTrim2Percentage() {
-        return trim2Percentage;
-    }
-
-    @Override
+    @JsonIgnore
+    @Transient
     public double getRunnersFloorPercentage() {
         return runnersFloorPercentage;
     }
+    @Override
+    public Integer getTrim1Quantity() {
+        return trim1Quantity;
+    }
+    @Override
+    public void setTrim1Quantity(Integer trim1Quantity) {
+        this.trim1Quantity = trim1Quantity;
+    }
+    public Double getTrim1PriceFinal() {
+        return trim1PriceFinal;
+    }
+    public void setTrim1PriceFinal(Double trim1PriceFinal) {
+        this.trim1PriceFinal = trim1PriceFinal;
+    }
+
 }

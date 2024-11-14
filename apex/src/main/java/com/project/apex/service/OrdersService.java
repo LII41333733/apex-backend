@@ -6,8 +6,7 @@ import com.project.apex.data.trades.*;
 import com.project.apex.data.trades.TradeRecord;
 import com.project.apex.model.BaseTrade;
 import com.project.apex.model.LottoTrade;
-import com.project.apex.model.Trade;
-import com.project.apex.model.VisionTrade;
+import com.project.apex.model.HeroTrade;
 import com.project.apex.util.Record;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -28,10 +27,9 @@ public class OrdersService {
     private final TradeFactory tradeFactory;
 
     @Autowired
-    public OrdersService(
-            AccountService accountService,
-            @Lazy ClientWebSocket clientWebSocket,
-            TradeFactory tradeFactory) {
+    public OrdersService(ClientWebSocket clientWebSocket,
+                         AccountService accountService,
+                         TradeFactory tradeFactory) {
         this.accountService = accountService;
         this.clientWebSocket = clientWebSocket;
         this.tradeFactory = tradeFactory;
@@ -52,14 +50,11 @@ public class OrdersService {
                 RiskMap ordersByRiskType = handleMapOrdersByRiskType(orders);
                 TradeMap baseTradeMap = ordersByRiskType.get(BASE);
                 TradeMap lottoTradeMap = ordersByRiskType.get(LOTTO);
-                TradeMap visionTradeMap = ordersByRiskType.get(VISION);
+                TradeMap heroTradeMap = ordersByRiskType.get(HERO);
                 TradeRecord<BaseTrade> baseTradeRecord = tradeFactory.watch(BASE, baseTradeMap);
                 TradeRecord<LottoTrade> lottoTradeRecord = tradeFactory.watch(LOTTO, lottoTradeMap);
-                TradeRecord<VisionTrade> visionTradeRecord = tradeFactory.watch(VISION, visionTradeMap);
-
-                if (clientWebSocket.isConnected()) {
-                    clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord, lottoTradeRecord, visionTradeRecord)));
-                }
+                TradeRecord<HeroTrade> heroTradeRecord = tradeFactory.watch(HERO, heroTradeMap);
+                clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord, lottoTradeRecord, heroTradeRecord)));
             }
         } catch (Exception e) {
             logger.error("OrdersService.fetchOrders: ERROR: Exception: {}", e.getMessage(), e);
@@ -82,19 +77,20 @@ public class OrdersService {
 
                 if (tradeMap == null) {
                     tradeMap = new TradeMap();
-                    ordersByRiskType.put(riskType, tradeMap);
                 }
 
                 TradeLegMap tradeLegMap = tradeMap.get(id);
 
                 if (tradeLegMap == null) {
                     tradeLegMap = new TradeLegMap();
-                    tradeMap.put(id, tradeLegMap);
                 }
 
                 if (!tradeLegMap.containsKey(tradeLeg)) {
                     tradeLegMap.put(tradeLeg, orderJson);
                 }
+
+                tradeMap.put(id, tradeLegMap);
+                ordersByRiskType.put(riskType, tradeMap);
             }
         };
 

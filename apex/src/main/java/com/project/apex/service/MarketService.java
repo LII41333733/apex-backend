@@ -77,7 +77,7 @@ public class MarketService {
                     .sorted("put".equalsIgnoreCase(optionType) ?
                             Comparator.comparing(QuoteData::getStrike).reversed() :
                             Comparator.comparing(QuoteData::getStrike))
-                            .limit(30)
+                            .limit(20)
                                     .toList();
 
             setOptionsMap(list.stream()

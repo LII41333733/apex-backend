@@ -51,10 +51,7 @@ public class MarketController {
 
             // If data is available, handle the WebSocket communication
             if (!list.isEmpty()) {
-                marketStream.stopAllStreams();
-                marketStream.reconnect();
-//                String message = marketService.buildOptionsStreamCall();
-//                marketStream.sendMessage(message);
+                marketStream.startStream();
             }
 
             return new ResponseEntity<>(list, HttpStatus.OK);

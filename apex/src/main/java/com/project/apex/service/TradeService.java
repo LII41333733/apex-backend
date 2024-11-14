@@ -4,13 +4,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.data.account.Balance;
 import com.project.apex.data.orders.OrderFillRecord;
 import com.project.apex.data.trades.*;
+import com.project.apex.interfaces.Trim1Tradeable;
+import com.project.apex.interfaces.Trim2Tradeable;
 import com.project.apex.model.Trade;
+import com.project.apex.model.VisionTrade;
 import com.project.apex.repository.TradeRepository;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
 import com.project.apex.util.TradeOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.*;
@@ -20,14 +25,15 @@ import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.util.TradeOrder.*;
 import static com.project.apex.util.TradeOrder.isRejected;
 
-public abstract class TradeService<T extends Trade> {
+@Component
+public abstract class TradeService<T extends Trade> implements TradeServiceInterface<T>  {
 
     private static final Logger logger = LoggerFactory.getLogger(TradeService.class);
-    private final AccountService<T> accountService;
+    private final AccountService accountService;
     private final MarketService marketService;
     private final TradeRepository<T> tradeRepository;
 
-    public TradeService(AccountService<T> accountService,
+    public TradeService(AccountService accountService,
                         MarketService marketService,
                         TradeRepository<T> tradeRepository) {
         this.accountService = accountService;
@@ -42,7 +48,7 @@ public abstract class TradeService<T extends Trade> {
     public void placeTrade(T trade, BuyDataRecord buyDataRecord) throws Exception {
         RiskType riskType = buyDataRecord.riskType();
         String riskTypeName = riskType.name();
-        String error = "";
+        String error;
 
         Long id = Convert.getMomentAsCode();
         logger.info("TradeService.placeFill: Start: {}", id);
@@ -51,7 +57,8 @@ public abstract class TradeService<T extends Trade> {
         logger.info("Total Equity: {}", totalEquity);
         double totalCash = balance.getTotalCash();
         logger.info("Total Cash: {}", totalCash);
-        int tradeAllotment = (int) Math.floor(totalEquity * trade.getTradeAmountPercentage());
+        int tradeAllotment =
+                trade instanceof VisionTrade ? 100 : (int) Math.floor(totalEquity * trade.getTradeAmountPercentage());
         logger.info("Trade Allotment: {}", tradeAllotment);
         logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
         if (tradeAllotment < totalCash) {
@@ -76,14 +83,14 @@ public abstract class TradeService<T extends Trade> {
             }
 
             new Record<>("TradeService.placeFill: Fill Parameters", new OrderFillRecord(
-                    id,
-                    totalEquity,
-                    totalCash,
-                    tradeAllotment,
-                    buyDataRecord.price(),
-                    contractCost,
-                    quantity,
-                    parameters
+                id,
+                totalEquity,
+                totalCash,
+                tradeAllotment,
+                buyDataRecord.price(),
+                contractCost,
+                quantity,
+                parameters
             ));
 
             trade.setId(id);
@@ -91,9 +98,9 @@ public abstract class TradeService<T extends Trade> {
             trade.setInitialAsk(ask);
             trade.setFillPrice(ask);
             trade.setQuantity(quantity);
-            trade.calculateStopsAndTrims();
+            this.calculateStopsAndTrims(trade);
 
-            accountService.placeOrder(trade, parameters,"TradeService.placeFill");
+            accountService.placeOrder(trade.getId(), parameters,"TradeService.placeFill");
             tradeRepository.save(trade);
         } else {
             error = "TradeService.placeFill: Not enough cash available to make trade: {}";
@@ -113,75 +120,63 @@ public abstract class TradeService<T extends Trade> {
 
             switch (tradeLeg) {
                 case STOP -> trade.setStopPrice(price);
-                case TRIM1 -> trade.setTrim1Price(price);
-                case TRIM2 -> trade.setTrim2Price(price);
+                case TRIM1 -> {
+                    if (trade instanceof Trim1Tradeable trim1Tradeable) {
+                        trim1Tradeable.setTrim1Price(price);
+                    }
+                }
+                case TRIM2 -> {
+                    if (trade instanceof Trim2Tradeable trim2Tradeable) {
+                        trim2Tradeable.setTrim2Price(price);
+                    }
+                }
             }
 
             tradeRepository.save(trade);
         }
     }
 
-    public void sellTrade(SellTradeRecord sellTradeRecord) {
-        Long id = sellTradeRecord.id();
-        Optional<T> tradeOpt = tradeRepository.findById(id);
-
-        if (tradeOpt.isPresent()) {
-            T trade = tradeOpt.get();
-            placeMarketSell(trade, STOP);
-        }
-    }
-
-    public boolean placeMarketSell(T trade, TradeLeg TradeLeg) {
-        logger.info("BaseTradeService.placeMarketSell: Start");
+    public boolean placeMarketSell(T trade, TradeLeg tradeLeg, Map<String, String> parameters) {
+        logger.info("TradeService.placeMarketSell: Start");
         boolean result = true;
 
         try {
-            Map<String, String> parameters = new HashMap<>();
             parameters.put("class", "option");
             parameters.put("duration", "day");
             parameters.put("type", "market");
             parameters.put("option_symbol", trade.getOptionSymbol());
             parameters.put("side", "sell_to_close");
-            parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" + TradeLeg.name());
+            parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" + tradeLeg.name());
 
-            switch (TradeLeg) {
-                case TRIM1 -> parameters.put("quantity", String.valueOf(trade.getTrim1Quantity()));
-                case TRIM2 -> parameters.put("quantity", String.valueOf(trade.getTrim2Quantity()));
-                case STOP -> {
-                    switch (trade.getTrimStatus()) {
-                        case 0 ->
-                                parameters.put("quantity", String.valueOf(trade.getTrim1Quantity() + trade.getTrim2Quantity() + trade.getRunnersQuantity()));
-                        case 1 ->
-                                parameters.put("quantity", String.valueOf(trade.getTrim2Quantity() + trade.getRunnersQuantity()));
-                        case 2 -> parameters.put("quantity", String.valueOf(trade.getRunnersQuantity()));
-                    }
-                }
-            }
-
-            new Record<>("BaseTradeService.placeMarketSell: Parameters:", parameters);
+            new Record<>("TradeService.placeMarketSell: Parameters:", parameters);
 
             JsonNode response = accountService.post("/orders", parameters);
             JsonNode order = response.get("order");
-            JsonNode err = response.get("errors").get("error");
-            String err1 = err.get(0).asText();
-            String err2 = err.get(1).asText();
 
             if (isOk(order)) {
-                logger.info("BaseTradeService.placeMarketSell: Market Sell Successful: {}", trade.getId());
+                logger.info("TradeService.placeMarketSell: Market Sell Successful: {}", trade.getId());
             } else {
-                logger.error("BaseTradeService.placeMarketSell: Market Sell UnSuccessful: {} Tradier Error: {} - {}", trade.getId(), err1, err2);
+                JsonNode err = response.get("errors").get("error");
+                String err1 = err.get(0).asText();
+                String err2 = err.get(1).asText();
+                logger.error("TradeService.placeMarketSell: Market Sell UnSuccessful: {} Tradier Error: {} - {}", trade.getId(), err1, err2);
             }
         } catch (Exception e) {
-            logger.error("BaseTradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);
+            logger.error("TradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);
             result = false;
         }
 
         return result;
     }
 
+    public void handleSetFillPrice(T trade, JsonNode fillOrder) {
+        logger.error("TRACKING FILL 2: {}", fillOrder);
+        trade.setFillPrice(TradeOrder.getPrice(fillOrder));
+    }
+
     public TradeRecord<T> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
         logger.debug("TradeManager.watch: Start: Risk Type: {}", riskType);
-        Map<Long, T> allTrades = new HashMap<>();
+        List<T> allTrades = new ArrayList<>();
         List<Long> pendingTrades = new ArrayList<>();
         List<Long> openTrades = new ArrayList<>();
         List<Long> runnerTrades = new ArrayList<>();
@@ -202,19 +197,25 @@ public abstract class TradeService<T extends Trade> {
                     JsonNode stopOrder = tradeLegMap.get(STOP);
                     boolean hasStopOrder = stopOrder != null;
                     boolean isOpen = trade.isOpen() || trade.hasRunners();
+                    boolean isFilled = trade.isFilled() || trade.isFinalized();
 
                     if (trade.isNew()) {
                         logger.info("TradeManager.watch: {}: Initializing Trade (NEW): {}", riskType, id);
-                        trade.initializeTrade(fillOrder);
+                        trade.setOpenDate(TradeOrder.getCreateDate(fillOrder));
+                        trade.setOptionSymbol(TradeOrder.getOptionSymbol(fillOrder));
+                        trade.setSymbol(TradeOrder.getSymbol(fillOrder));
+                        this.handleSetFillPrice(trade, fillOrder);
+                        this.calculateStopsAndTrims(trade);
                         trade.setStatus(PENDING);
                         logger.info("TradeManager.watch: {}: (NEW -> PENDING): {}", riskType, id);
                     }
 
                     if (trade.isPending()) {
-                        if (isFilled(fillOrder)) {
+                        logger.error("TRACKING FILL: {}", fillOrder);
+                        if (isOpen(fillOrder) || isFilled(fillOrder)) {
                             logger.info("TradeManager.watch: {}: Order Filled (PENDING): {}", riskType, id);
                             logger.info("TradeManager.watch: {}: Initializing Trade (PENDING): {}", riskType, id);
-                            trade.initializeTrade(fillOrder);
+                            this.handleSetFillPrice(trade, fillOrder);
                             trade.setStatus(OPEN);
                             logger.info("TradeManager.watch: {}: (PENDING -> OPEN): {}", riskType, id);
                         } else if (isCanceled(fillOrder)) {
@@ -231,7 +232,6 @@ public abstract class TradeService<T extends Trade> {
                         }
                     }
 
-
                     if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
                         setLastAndMaxPrices(trade);
                         double lastPrice = trade.getLastPrice();
@@ -239,8 +239,11 @@ public abstract class TradeService<T extends Trade> {
                         if (isOpen) {
                             logger.debug("TradeManager.watch: {}: Updating Stops and Trims: {}", riskType, id);
 
-                            if ((hasStopOrder && TradeOrder.isFilled(stopOrder))
-                                    || (lastPrice <= trade.getStopPrice() && placeMarketSell(trade, STOP))) {
+                            if (!hasStopOrder && (lastPrice <= trade.getStopPrice())) {
+                                prepareMarketSell(trade, STOP);
+                                trade.setStatus(FILLED);
+                                logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
+                            } else if (hasStopOrder && isFilled(stopOrder)) {
                                 trade.setStatus(FILLED);
                                 logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
                             } else {
@@ -248,12 +251,10 @@ public abstract class TradeService<T extends Trade> {
                                 openTrades.add(id);
                                 logger.info("TradeManager.watch: {}: Order Open: {}", riskType, id);
                             }
-                        }
-
-                        if (trade.isFilled()) {
+                        } else if (isFilled) {
                             filledTrades.add(id);
 
-                            if (!trade.isFinalized()) {
+                            if (trade.isFilled() && !trade.isFinalized() && hasStopOrder) {
                                 finalizeTrade(trade, tradeLegMap);
                                 trade.setStatus(FINALIZED);
                                 logger.info("TradeManager.watch: {}: (FILLED -> FINALIZED): {}", riskType, id);
@@ -261,7 +262,7 @@ public abstract class TradeService<T extends Trade> {
                         }
                     }
 
-                    allTrades.put(id, trade);
+                    allTrades.add(trade);
                     tradeRepository.save(trade);
                     logger.debug("TradeManager.watch: {}: Finish: Saving Trade to Repo: {}", riskType, id);
                 }
@@ -281,7 +282,23 @@ public abstract class TradeService<T extends Trade> {
         trade.setMaxPrice(Math.max(tradeMaxPrice, bid));
     }
 
-    public void handleOpenTrades(T trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {}
+    public void sellTrade(SellTradeRecord sellTradeRecord) {
+        Long id = sellTradeRecord.id();
+        Optional<T> tradeOpt = tradeRepository.findById(id);
 
-    public void finalizeTrade(T trade, TradeLegMap tradeLegMap) {}
+        if (tradeOpt.isPresent()) {
+            T trade = tradeOpt.get();
+            prepareMarketSell(trade, STOP);
+        }
+    }
+
+    public static int getValueByQuantity(int quantity, double price) {
+        int contractCost = (int) (price * 100);
+        return quantity * contractCost;
+    }
+
+    public abstract void calculateStopsAndTrims(T trade);
+    public abstract void handleOpenTrades(T trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades);
+    public abstract void finalizeTrade(T trade, TradeLegMap tradeLegMap);
+    public abstract boolean prepareMarketSell(T trade, TradeLeg tradeLeg);
 }

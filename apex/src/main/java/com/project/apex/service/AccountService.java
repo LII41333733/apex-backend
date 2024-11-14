@@ -23,7 +23,7 @@ import static com.project.apex.util.HttpRequest.*;
 import static com.project.apex.util.TradeOrder.isOk;
 
 @Service
-public class AccountService<T extends Trade> {
+public class AccountService {
 
     private static final Logger logger = LoggerFactory.getLogger(AccountService.class);
     private final EnvConfig envConfig;
@@ -90,13 +90,13 @@ public class AccountService<T extends Trade> {
         }
     }
 
-    public JsonNode delete(String url) throws IOException {
+    public void delete(String url) throws IOException {
         logger.info("AccountService.delete: Start: Url: {}", getBaseApi() + url);
 
         try {
             RequestBuilder request = addHeaders(RequestBuilder.delete(getBaseApi() + url), envConfig);
             HttpResponse response = HttpClientBuilder.create().build().execute(request.build());
-            return getParsedResponse(response);
+            getParsedResponse(response);
         } catch (IOException e) {
             logger.error("AccountService.delete: ERROR: IOException:", e);
             throw e;
@@ -138,23 +138,23 @@ public class AccountService<T extends Trade> {
         }
     }
 
-    public void addNewAccountBalance(AccountBalance accountBalance) throws IOException {
+    public void addNewAccountBalance(AccountBalance accountBalance) {
         accountBalanceRepository.save(accountBalance);
     }
 
-    public void placeOrder(T trade, Map<String, String> parameters, String action) throws Exception {
+    public void placeOrder(Long id, Map<String, String> parameters, String action) throws Exception {
         JsonNode json = post("/orders", parameters);
         JsonNode order = json.get("order");
-        JsonNode err = json.get("errors").get("error");
-        String err1 = err.get(0).asText();
-        String err2 = err.get(1).asText();
 
         if (isOk(order)) {
             String orderId = order.get("id").asText();
-            logger.info("{}: Order Successful: {} Order Id: {}", action, trade.getId(), orderId);
+            logger.info("{}: Order Successful: {} Order Id: {}", action, id, orderId);
         } else {
+            JsonNode err = json.get("errors").get("error");
+            String err1 = err.get(0).asText();
+            String err2 = err.get(1).asText();
             String error = "{}: Order UnSuccessful: {} Tradier Error: {} - {}";
-            logger.error(error, action, trade.getId(), err1, err2);
+            logger.error(error, action, id, err1, err2);
             throw new Exception(error);
         }
     }

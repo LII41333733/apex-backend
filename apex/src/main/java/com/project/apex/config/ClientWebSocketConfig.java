@@ -17,7 +17,7 @@ public class ClientWebSocketConfig implements WebSocketConfigurer {
     private final ClientWebSocket clientWebSocket;
 
 
-    public ClientWebSocketConfig(ClientWebSocket clientWebSocket, JwtHandshakeInterceptor jwtHandshakeInterceptor) {
+    public ClientWebSocketConfig(ClientWebSocket clientWebSocket) {
         this.clientWebSocket = clientWebSocket;
     }
 

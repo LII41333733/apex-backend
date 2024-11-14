@@ -1,6 +1,7 @@
 package com.project.apex.component;
 
 import com.project.apex.data.trades.TradeFactory;
+import com.project.apex.model.Trade;
 import com.project.apex.service.AccountService;
 import com.project.apex.service.MarketService;
 import com.project.apex.service.OrdersService;
@@ -29,28 +30,34 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private final MarketStream marketStream;
     private final MarketService marketService;
     private final TradeFactory tradeFactory;
+    private final Portfolio portfolio;
+    private final DemoPortfolio demoPortfolio;
 
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
     @Autowired
-    public ClientWebSocket(
-            AccountService accountService,
-            MarketStream marketStream,
-            @Lazy OrdersService ordersService,
-            MarketService marketService,
-            TradeFactory tradeFactory) {
-        this.accountService = accountService;
+    public ClientWebSocket(@Lazy OrdersService ordersService,
+                           @Lazy Portfolio portfolio,
+                           @Lazy DemoPortfolio demoPortfolio,
+                           AccountService accountService,
+                           MarketStream marketStream,
+                           MarketService marketService,
+                           TradeFactory tradeFactory) {
         this.ordersService = ordersService;
+        this.accountService = accountService;
         this.marketStream = marketStream;
         this.marketService = marketService;
         this.tradeFactory = tradeFactory;
+        this.portfolio = portfolio;
+        this.demoPortfolio = demoPortfolio;
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         logger.info("WebSocket connection established: " + session.getId());
         sessions.add(session);
-        sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
+
+        demoPortfolio.fetchAllTrades();
         sendData(new Record<>("balance", accountService.getBalanceData()));
         marketService.fetchMarketPrices();
         ordersService.fetchOrders();
@@ -69,7 +76,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
     }
 
     @Override
-    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
+    public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
         sessions.remove(session);
         logger.info("WebSocket connection closed: " + session.getId() + " with status " + status);
         if (sessions.isEmpty()) {
@@ -79,7 +86,9 @@ public class ClientWebSocket extends TextWebSocketHandler {
     }
 
     public void sendData(Object object) throws IOException {
-        sendMessageToAll(Convert.objectToString(object));
+        if (isConnected()) {
+            sendMessageToAll(Convert.objectToString(object));
+        }
     }
 
     public void sendMessageToAll(String message) throws IOException {
@@ -100,22 +109,20 @@ public class ClientWebSocket extends TextWebSocketHandler {
         }
     }
 
-    @Scheduled(fixedRate = 4000)
-    public void fetchOrdersScheduleActive() {
-        if (!sessions.isEmpty()) {
+    public void fetchOrdersActiveClient() {
+        if (isConnected()) {
             try {
                 ordersService.fetchOrders();
                 marketService.fetchMarketPrices();
                 sendData(new Record<>("balance", accountService.getBalanceData()));
-                sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
+//                sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
             } catch (Exception e) {
                 logger.error("Failed to fetch orders", e);
             }
         }
     }
 
-    @Scheduled(fixedRate = 4000)
-    public void fetchOrdersSchedule() {
+    public void fetchOrdersInActiveClient() {
         if (sessions.isEmpty()) {
             ordersService.fetchOrders();
         }

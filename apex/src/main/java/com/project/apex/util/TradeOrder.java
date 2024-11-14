@@ -54,15 +54,15 @@ public class TradeOrder {
     }
 
     public static double getPrice(JsonNode order) {
-        return order.get("price").asDouble();
-    }
-
-    public static double getAverageFillPrice(JsonNode order) {
-        return order.get("avg_fill_price").asDouble();
-    }
-
-    public static double getAvgFillPrice(JsonNode order) {
-        return order.get("avg_fill_price").asDouble();
+        JsonNode avg = order.get("avg_fill_price");
+        JsonNode price = order.get("price");
+        if (avg != null) {
+            return avg.asDouble();
+        } else if (price != null) {
+            return price.asDouble();
+        } else {
+            return 0;
+        }
     }
 
     public static int getQuantity(JsonNode order) {
