@@ -7,6 +7,7 @@ import com.project.apex.config.EnvConfig;
 import com.project.apex.data.market.QuoteData;
 import com.project.apex.component.ApiRequest;
 import com.project.apex.component.ClientWebSocket;
+import com.project.apex.util.Constants;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
 import org.apache.http.HttpResponse;
@@ -41,6 +42,7 @@ public class MarketService {
     private final EnvConfig envConfig;
     private final ClientWebSocket clientWebSocket;
     ObjectMapper objectMapper = new ObjectMapper();
+
 
     @Autowired
     public MarketService(EnvConfig envConfig, @Lazy ClientWebSocket clientWebSocket) {
@@ -217,13 +219,12 @@ public class MarketService {
     }
 
     public void fetchMarketPrices() {
+        String concatStrings = Arrays.stream(Constants.SYMBOLS).reduce("", (a, b) -> a + "," + b);
+        String stripped = concatStrings.substring(1, concatStrings.length() - 1);
+
         try {
-            String spyPriceData = getPriceFull("SPY");
-            String qqqPriceData = getPriceFull("QQQ");
-            String iwmPriceData = getPriceFull("IWM");
-            clientWebSocket.sendData(new Record<>("SPY", spyPriceData));
-            clientWebSocket.sendData(new Record<>("QQQ", qqqPriceData));
-            clientWebSocket.sendData(new Record<>("IWM", iwmPriceData));
+            String symbolsData = getPriceFull(stripped);
+            clientWebSocket.sendData(new Record<>("symbols", symbolsData));
         } catch (Exception e) {
             logger.error(e.getMessage());
         }

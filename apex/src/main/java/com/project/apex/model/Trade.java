@@ -25,6 +25,8 @@ public abstract class Trade {
     @Id
     @Column(name = "id")
     private Long id;
+    @Column(name = "fill_order_id")
+    private Long fillOrderId;
     @Column(name = "risk_type")
     private RiskType riskType;
     @Column(name = "pre_trade_balance")
@@ -133,9 +135,9 @@ public abstract class Trade {
     public void setId(Long id) {
         this.id = id;
     }
-    public Double getPreTradeBalance() {
-        return preTradeBalance;
-    }
+    public Long getFillOrderId() { return fillOrderId; }
+    public void setFillOrderId(Long fillOrderId) { this.fillOrderId = fillOrderId; }
+    public Double getPreTradeBalance() { return preTradeBalance; }
     public void setPreTradeBalance(Double preTradeBalance) {
         this.preTradeBalance = preTradeBalance;
     }

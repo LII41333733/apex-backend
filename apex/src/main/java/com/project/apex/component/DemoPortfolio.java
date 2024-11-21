@@ -7,6 +7,7 @@ import com.project.apex.model.Trade;
 import com.project.apex.records.PortfolioRecord;
 import com.project.apex.util.Record;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
@@ -15,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
+@DependsOn("tradeSimulator")
 public class DemoPortfolio {
     TradeFactory tradeFactory;
     ClientWebSocket clientWebSocket;

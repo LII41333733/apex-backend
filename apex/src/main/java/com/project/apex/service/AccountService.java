@@ -142,13 +142,14 @@ public class AccountService {
         accountBalanceRepository.save(accountBalance);
     }
 
-    public void placeOrder(Long id, Map<String, String> parameters, String action) throws Exception {
+    public Long placeOrder(Long id, Map<String, String> parameters, String action) throws Exception {
         JsonNode json = post("/orders", parameters);
         JsonNode order = json.get("order");
 
         if (isOk(order)) {
-            String orderId = order.get("id").asText();
+            Long orderId = order.get("id").asLong();
             logger.info("{}: Order Successful: {} Order Id: {}", action, id, orderId);
+            return orderId;
         } else {
             JsonNode err = json.get("errors").get("error");
             String err1 = err.get(0).asText();

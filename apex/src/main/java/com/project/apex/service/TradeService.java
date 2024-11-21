@@ -51,7 +51,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         String error;
 
         Long id = Convert.getMomentAsCode();
-        logger.info("TradeService.placeFill: Start: {}", id);
+        logger.info("TradeService.placeTrade: Start: {}", id);
         Balance balance = accountService.getBalanceData();
         double totalEquity = balance.getTotalEquity();
         logger.info("Total Equity: {}", totalEquity);
@@ -82,7 +82,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                 throw new Exception("Not enough BP for this trade");
             }
 
-            new Record<>("TradeService.placeFill: Fill Parameters", new OrderFillRecord(
+            new Record<>("TradeService.placeTrade: Fill Parameters", new OrderFillRecord(
                 id,
                 totalEquity,
                 totalCash,
@@ -100,10 +100,11 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
             trade.setQuantity(quantity);
             this.calculateStopsAndTrims(trade);
 
-            accountService.placeOrder(trade.getId(), parameters,"TradeService.placeFill");
+            Long orderId = accountService.placeOrder(trade.getId(), parameters,"TradeService.placeTrade");
+            trade.setFillOrderId(orderId);
             tradeRepository.save(trade);
         } else {
-            error = "TradeService.placeFill: Not enough cash available to make trade: {}";
+            error = "TradeService.placeTrade: Not enough cash available to make trade: {}";
             logger.error(error, id);
             throw new Exception(error);
         }

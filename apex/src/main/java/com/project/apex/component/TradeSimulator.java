@@ -17,18 +17,19 @@ import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
 import static com.project.apex.data.trades.RiskType.*;
-import static com.project.apex.service.TradeService.getValueByQuantity;
 import static com.project.apex.util.Convert.roundedDouble;
 
-//@Component
+@Component
 public class TradeSimulator {
 
-    private final Deque<Trade> trades = new LinkedList<>();
+    private final List<Trade> trades = new LinkedList<>();
     private final TradeFactory tradeFactory;
     private TradeService<Trade> tradeService;
 
@@ -39,7 +40,7 @@ public class TradeSimulator {
 
     @PostConstruct
     public void init() {
-        while (trades.isEmpty() || trades.getLast().getPostTradeBalance() < 1000000) {
+        while (trades.isEmpty() || trades.get(trades.size() - 1).getPostTradeBalance() < 600000) {
             try {
                 Trade trade = createRandomTrade();
                 prepareTrade(trade);
@@ -49,6 +50,7 @@ public class TradeSimulator {
             }
         }
 
+        mapDatesToTrades();
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -73,7 +75,7 @@ public class TradeSimulator {
         boolean isVisionTrade = trade instanceof VisionTrade;
         double ask = isVisionTrade ? getRandomVisionFillPrice() : getRandomFillPrice();
         int askPrice = (int) (ask * 100);
-        double balance = trades.isEmpty() ? 10000 : trades.getLast().getPostTradeBalance();
+        double balance = trades.isEmpty() ? 10000 : trades.get(trades.size() - 1).getPostTradeBalance();
         int tradeAllotment = isVisionTrade ? 100 : (int) Math.floor(balance * trade.getTradeAmountPercentage());
 
         if (askPrice > tradeAllotment) {
@@ -90,8 +92,6 @@ public class TradeSimulator {
         trade.setInitialAsk(ask);
         trade.setFillPrice(ask);
         trade.setQuantity(quantity);
-        trade.setOpenDate(createNewDate(true));
-        trade.setCloseDate(createNewDate(false));
         trade.setSymbol(symbol);
         trade.setOptionSymbol(symbol + strike);
         trade.setStatus(TradeStatus.FILLED);
@@ -108,7 +108,6 @@ public class TradeSimulator {
     public void simulateTrade(Trade trade) {
         int[] trimResultPercentages = trade.getDemoOutcomePercentages();
         Integer tradeValue = trade.getTradeAmount();
-        int finalAmount = 0;
         int tradeStage = 0;
         int quantity = trade.getQuantity();
         while (tradeStage > -1 && tradeStage < trimResultPercentages.length) {
@@ -127,6 +126,7 @@ public class TradeSimulator {
                     } else {
                         double runnerPrice = getRandomRunnerPrice(trade.getFillPrice());
                         trade.setLastPrice(runnerPrice);
+                        trade.setTrimStatus(1);
                         tradeValue = updateTradeValue(tradeValue, trade.getFillPrice(), runnerPrice, trade.getQuantity());
                         tradeStage = -1;
                     }
@@ -154,7 +154,7 @@ public class TradeSimulator {
                         tradeStage = -1;
                     }
                 } else {
-                    trade.setLastPrice(trade.getFillPrice());
+                    trade.setLastPrice(((Trim1Tradeable) trade).getTrim1Price());
                     tradeStage = -1;
                 }
             } else {
@@ -163,7 +163,7 @@ public class TradeSimulator {
                     trade.setLastPrice(runnerPrice);
                     tradeValue = updateTradeValue(tradeValue, trade.getFillPrice(), runnerPrice, quantity);
                 } else {
-                    trade.setLastPrice(trade.getFillPrice());
+                    trade.setLastPrice(((Trim2Tradeable) trade).getTrim2Price());
                 }
                 tradeStage = -1;
             }
@@ -173,6 +173,16 @@ public class TradeSimulator {
         int pl = tradeValue - trade.getTradeAmount();
         trade.setPl(pl);
         trade.setPostTradeBalance(trade.getPreTradeBalance() + pl);
+
+        if (trade instanceof Trim2Tradeable t2 && trade.getTrimStatus() == 2) {
+            t2.setTrim2PriceFinal(t2.getTrim2Price());
+        }
+
+        if (trade instanceof Trim1Tradeable t1 && trade.getTrimStatus() >= 1) {
+            t1.setTrim1PriceFinal(t1.getTrim1Price());
+        }
+
+        trade.setStopPriceFinal(trade.getLastPrice());
         trades.add(trade);
     }
 
@@ -182,21 +192,27 @@ public class TradeSimulator {
         return (randomNumber < chancePercent);
     }
 
-    public LocalDateTime createNewDate(boolean isOpenDate) {
-        int hour = isOpenDate ? 9 : 16;
-        int minute = isOpenDate ? 30 : 0;
-        LocalDateTime date;
-
-        if (trades.isEmpty()) {
-            date = LocalDateTime.now(ZoneId.of("America/New_York"));
-        } else {
-            date = trades.getLast().getOpenDate().plusDays(1);
+    public void mapDatesToTrades() {
+        LocalDateTime currentDate = LocalDateTime.now(ZoneId.of("America/New_York"));
+        for (int i = trades.size() - 1; i >= 0; i--) {
+            Trade trade = trades.get(i);
+            if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                currentDate = currentDate.with(DayOfWeek.FRIDAY);
+            }
+            trade.setOpenDate(currentDate.withHour(9)
+                    .withMinute(30)
+                    .withSecond(0)
+                    .withNano(0));
+            trade.setCloseDate(currentDate.withHour(16)
+                    .withMinute(0)
+                    .withSecond(0)
+                    .withNano(0));
+            currentDate = switch (currentDate.getDayOfWeek()) {
+                case MONDAY -> currentDate.minusDays(3);
+                case SUNDAY -> currentDate.minusDays(2);
+                default -> currentDate.minusDays(1);
+            };
         }
-
-        return date.withHour(hour)
-                .withMinute(minute)
-                .withSecond(0)
-                .withNano(0);
     }
 
     public double getRandomFillPrice() {
