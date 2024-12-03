@@ -10,6 +10,7 @@ import com.project.apex.interfaces.Trim1Tradeable;
 import com.project.apex.interfaces.Trim2Tradeable;
 import com.project.apex.model.*;
 import com.project.apex.service.TradeService;
+import com.project.apex.util.Constants;
 import com.project.apex.util.Convert;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +33,7 @@ public class TradeSimulator {
     private final List<Trade> trades = new LinkedList<>();
     private final TradeFactory tradeFactory;
     private TradeService<Trade> tradeService;
+    LocalDateTime currentDate = LocalDateTime.now(ZoneId.of("America/New_York"));
 
     @Autowired
     public TradeSimulator(TradeFactory tradeFactory) {
@@ -44,13 +46,18 @@ public class TradeSimulator {
             try {
                 Trade trade = createRandomTrade();
                 prepareTrade(trade);
-                simulateTrade(trade);
+                simulateTrade(trade, false);
+                trade = createRandomTrade();
+                prepareTrade(trade);
+                simulateTrade(trade, false);
+                trade = createRandomTrade();
+                prepareTrade(trade);
+                simulateTrade(trade, true);
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
         }
 
-        mapDatesToTrades();
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
@@ -64,28 +71,27 @@ public class TradeSimulator {
     }
 
     public Trade createRandomTrade() {
-        int randomNumber = (int) (Math.random() * 4);
-        RiskType riskType = riskTypes[randomNumber];
+        List<RiskType> choices = List.of(BASE, BASE, BASE, BASE, BASE, VISION, VISION, VISION, LOTTO, LOTTO, LOTTO, HERO, HERO);
+        int randomNumber = (int) (Math.random() * choices.size());
+        RiskType riskType = choices.get(randomNumber);
         tradeService = tradeFactory.getTradeService(riskType);
         return tradeFactory.getTradeInstance(riskType);
     }
 
     public void prepareTrade(Trade trade) throws Exception {
-        Long id = Convert.getMomentAsCode();
+        Long id = Convert.getMomentAsCode() + (trades.size() + 1);
         boolean isVisionTrade = trade instanceof VisionTrade;
         double ask = isVisionTrade ? getRandomVisionFillPrice() : getRandomFillPrice();
         int askPrice = (int) (ask * 100);
         double balance = trades.isEmpty() ? 10000 : trades.get(trades.size() - 1).getPostTradeBalance();
         int tradeAllotment = isVisionTrade ? 100 : (int) Math.floor(balance * trade.getTradeAmountPercentage());
-
         if (askPrice > tradeAllotment) {
             System.out.println("ask: " + askPrice);
             System.out.println("allotment: " + tradeAllotment);
             throw new Exception("Cannot afford");
         }
-
         int quantity = (int) Math.floor(tradeAllotment / (ask * 100));
-        String symbol = symbols[(int) getRandomValue(0, symbols.length - 1)];
+        String symbol = Constants.SYMBOLS[(int) getRandomValue(0, Constants.SYMBOLS.length - 1)];
         String strike = strikes[(int) getRandomValue(0, strikes.length - 1)];
         trade.setId(id);
         trade.setPreTradeBalance(balance);
@@ -105,7 +111,7 @@ public class TradeSimulator {
         return tradeValue + (currentValue - initialValue);
     }
 
-    public void simulateTrade(Trade trade) {
+    public void simulateTrade(Trade trade, boolean changeDay) {
         int[] trimResultPercentages = trade.getDemoOutcomePercentages();
         Integer tradeValue = trade.getTradeAmount();
         int tradeStage = 0;
@@ -183,6 +189,21 @@ public class TradeSimulator {
         }
 
         trade.setStopPriceFinal(trade.getLastPrice());
+
+        if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+            currentDate = currentDate.with(DayOfWeek.FRIDAY);
+        }
+        trade.setOpenDate(currentDate.withHour(9).withMinute(30).withSecond(0).withNano(0));
+        trade.setCloseDate(currentDate.withHour(16).withMinute(0).withSecond(0).withNano(0));
+
+        if (changeDay) {
+            currentDate = switch (currentDate.getDayOfWeek()) {
+                case MONDAY -> currentDate.minusDays(3);
+                case SUNDAY -> currentDate.minusDays(2);
+                default -> currentDate.minusDays(1);
+            };
+        }
+
         trades.add(trade);
     }
 
@@ -190,29 +211,6 @@ public class TradeSimulator {
         Random random = new Random();
         int randomNumber = random.nextInt(100);
         return (randomNumber < chancePercent);
-    }
-
-    public void mapDatesToTrades() {
-        LocalDateTime currentDate = LocalDateTime.now(ZoneId.of("America/New_York"));
-        for (int i = trades.size() - 1; i >= 0; i--) {
-            Trade trade = trades.get(i);
-            if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-                currentDate = currentDate.with(DayOfWeek.FRIDAY);
-            }
-            trade.setOpenDate(currentDate.withHour(9)
-                    .withMinute(30)
-                    .withSecond(0)
-                    .withNano(0));
-            trade.setCloseDate(currentDate.withHour(16)
-                    .withMinute(0)
-                    .withSecond(0)
-                    .withNano(0));
-            currentDate = switch (currentDate.getDayOfWeek()) {
-                case MONDAY -> currentDate.minusDays(3);
-                case SUNDAY -> currentDate.minusDays(2);
-                default -> currentDate.minusDays(1);
-            };
-        }
     }
 
     public double getRandomFillPrice() {
@@ -239,54 +237,7 @@ public class TradeSimulator {
         return roundedDouble(min + (max - min) * Math.random());
     }
 
-    private static final String[] symbols = {
-            "DIS", "IBM", "PEP", "MCD", "NKE", "XOM", "MMM",
-            "CAT", "CVX", "DAL", "UAL", "LUV", "AAL", "AMD",
-            "NVDA", "AFRM", "AAPL", "GOOGL", "TSLA", "MSFT",
-            "SMCI", "ARM", "PYPL", "SPY", "QQQ", "IWM"
-    };
-    private static final String[] strikes = {
-            "241001C00571000",
-            "241001P00567000",
-            "241018C00232500",
-            "240919C00572000",
-            "240919P00564000",
-            "241018C00051000",
-            "240919C00574000",
-            "241018C00051500",
-            "241018C00139000",
-            "241018P00182500",
-            "241018P00028000",
-            "241018P00222500",
-            "241018C00192500",
-            "241018C00082500",
-            "241018C00232500",
-            "240920P00565000",
-            "240920C00232500",
-            "240927C00165000",
-            "241025C00230000",
-            "241025C00048000",
-            "241025C00160000",
-            "241025C00148000",
-            "241025C00083000",
-            "240927C00260000",
-            "240927C00255000",
-            "240927C00405000",
-            "241004C00041000",
-            "241004C00270000",
-            "241004C00122000",
-            "241004C00580000",
-            "241004C00039500",
-            "241004C00262500",
-            "241004C00043250",
-            "241004C00165000",
-            "241011C00043000",
-            "241011C00195000",
-            "241011C00252500",
-            "241011C00047000",
-            "241011C00257500",
-            "241011C00595000"
-    };
-    private static final RiskType[] riskTypes = { BASE, LOTTO, VISION, HERO };
+    private static final String[] strikes = {"241001C00571000", "241001P00567000", "241018C00232500", "240919C00572000", "240919P00564000", "241018C00051000", "240919C00574000", "241018C00051500", "241018C00139000", "241018P00182500", "241018P00028000", "241018P00222500", "241018C00192500", "241018C00082500", "241018C00232500", "240920P00565000", "240920C00232500", "240927C00165000", "241025C00230000", "241025C00048000", "241025C00160000", "241025C00148000", "241025C00083000", "240927C00260000", "240927C00255000", "240927C00405000", "241004C00041000", "241004C00270000", "241004C00122000", "241004C00580000", "241004C00039500", "241004C00262500", "241004C00043250", "241004C00165000", "241011C00043000", "241011C00195000", "241011C00252500", "241011C00047000", "241011C00257500", "241011C00595000"};
+    private static final RiskType[] riskTypes = {BASE, LOTTO, VISION, HERO};
 
 }

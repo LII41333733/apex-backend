@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.project.apex.data.WebSocketData;
+import com.project.apex.data.websocket.WebSocketData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -17,7 +17,7 @@ public record Record<T>(String type, T data) {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     public Record {
-        if (!WebSocketData.quote.name().equals(type)) {
+        if (!WebSocketData.QUOTE.name().equals(type)) {
             print(type, data);
         }
     }

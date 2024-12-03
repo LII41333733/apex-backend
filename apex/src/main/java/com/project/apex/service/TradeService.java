@@ -49,7 +49,6 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         RiskType riskType = buyDataRecord.riskType();
         String riskTypeName = riskType.name();
         String error;
-
         Long id = Convert.getMomentAsCode();
         logger.info("TradeService.placeTrade: Start: {}", id);
         Balance balance = accountService.getBalanceData();
@@ -77,11 +76,9 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
             parameters.put("price", String.valueOf(ask));
             parameters.put("type", "limit");
             parameters.put("tag", riskTypeName + "-" + id + "-" + TradeLeg.FILL);
-
             if (quantity < 1) {
                 throw new Exception("Not enough BP for this trade");
             }
-
             new Record<>("TradeService.placeTrade: Fill Parameters", new OrderFillRecord(
                 id,
                 totalEquity,
@@ -92,14 +89,12 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                 quantity,
                 parameters
             ));
-
             trade.setId(id);
             trade.setPreTradeBalance(totalEquity);
             trade.setInitialAsk(ask);
             trade.setFillPrice(ask);
             trade.setQuantity(quantity);
             this.calculateStopsAndTrims(trade);
-
             Long orderId = accountService.placeOrder(trade.getId(), parameters,"TradeService.placeTrade");
             trade.setFillOrderId(orderId);
             tradeRepository.save(trade);
@@ -113,26 +108,30 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
     public void modifyTrade(ModifyTradeRecord modifyTradeRecord) {
         Long id = modifyTradeRecord.id();
         TradeLeg tradeLeg = modifyTradeRecord.tradeLeg();
-        double price = modifyTradeRecord.price();
+        double oldPrice;
+        double newPrice = modifyTradeRecord.price();
         Optional<T> tradeOpt = tradeRepository.findById(id);
-
         if (tradeOpt.isPresent()) {
             T trade = tradeOpt.get();
-
             switch (tradeLeg) {
-                case STOP -> trade.setStopPrice(price);
-                case TRIM1 -> {
+                case STOP: {
+                    oldPrice = trade.getStopPrice();
+                    trade.setStopPrice(newPrice);
+                };
+                break;
+                case TRIM1: {
                     if (trade instanceof Trim1Tradeable trim1Tradeable) {
-                        trim1Tradeable.setTrim1Price(price);
+                        oldPrice = trim1Tradeable.getTrim1Price();
+                        trim1Tradeable.setTrim1Price(newPrice);
                     }
                 }
-                case TRIM2 -> {
+                case TRIM2: {
                     if (trade instanceof Trim2Tradeable trim2Tradeable) {
-                        trim2Tradeable.setTrim2Price(price);
+                        oldPrice = trim2Tradeable.getTrim2Price();
+                        trim2Tradeable.setTrim2Price(newPrice);
                     }
                 }
             }
-
             tradeRepository.save(trade);
         }
     }
@@ -140,7 +139,6 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
     public boolean placeMarketSell(T trade, TradeLeg tradeLeg, Map<String, String> parameters) {
         logger.info("TradeService.placeMarketSell: Start");
         boolean result = true;
-
         try {
             parameters.put("class", "option");
             parameters.put("duration", "day");
@@ -148,12 +146,9 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
             parameters.put("option_symbol", trade.getOptionSymbol());
             parameters.put("side", "sell_to_close");
             parameters.put("tag", trade.getRiskType().name() + "-" + trade.getId() + "-" + tradeLeg.name());
-
             new Record<>("TradeService.placeMarketSell: Parameters:", parameters);
-
             JsonNode response = accountService.post("/orders", parameters);
             JsonNode order = response.get("order");
-
             if (isOk(order)) {
                 logger.info("TradeService.placeMarketSell: Market Sell Successful: {}", trade.getId());
             } else {
@@ -166,13 +161,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
             logger.error("TradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);
             result = false;
         }
-
         return result;
-    }
-
-    public void handleSetFillPrice(T trade, JsonNode fillOrder) {
-        logger.error("TRACKING FILL 2: {}", fillOrder);
-        trade.setFillPrice(TradeOrder.getPrice(fillOrder));
     }
 
     public TradeRecord<T> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
@@ -185,13 +174,11 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         List<Long> canceledTrades = new ArrayList<>();
         List<Long> rejectedTrades = new ArrayList<>();
         new Record<>("TradeManager.watch: " + riskType + ": TradeMap: {}", tradeMap);
-
         if (tradeMap != null && !tradeMap.isEmpty()) {
             for (TradeLegMap.Entry<Long, TradeLegMap> baseOrderEntry : tradeMap.entrySet()) {
                 Long id = baseOrderEntry.getKey();
                 Optional<T> tradeOpt = tradeRepository.findById(id);
                 TradeLegMap tradeLegMap = baseOrderEntry.getValue();
-
                 if (tradeOpt.isPresent()) {
                     T trade = tradeOpt.get();
                     JsonNode fillOrder = tradeLegMap.get(FILL);
@@ -199,24 +186,21 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                     boolean hasStopOrder = stopOrder != null;
                     boolean isOpen = trade.isOpen() || trade.hasRunners();
                     boolean isFilled = trade.isFilled() || trade.isFinalized();
-
                     if (trade.isNew()) {
                         logger.info("TradeManager.watch: {}: Initializing Trade (NEW): {}", riskType, id);
                         trade.setOpenDate(TradeOrder.getCreateDate(fillOrder));
                         trade.setOptionSymbol(TradeOrder.getOptionSymbol(fillOrder));
                         trade.setSymbol(TradeOrder.getSymbol(fillOrder));
-                        this.handleSetFillPrice(trade, fillOrder);
+                        trade.setFillPrice(TradeOrder.getPrice(fillOrder));
                         this.calculateStopsAndTrims(trade);
                         trade.setStatus(PENDING);
                         logger.info("TradeManager.watch: {}: (NEW -> PENDING): {}", riskType, id);
                     }
-
                     if (trade.isPending()) {
-                        logger.error("TRACKING FILL: {}", fillOrder);
                         if (isOpen(fillOrder) || isFilled(fillOrder)) {
                             logger.info("TradeManager.watch: {}: Order Filled (PENDING): {}", riskType, id);
                             logger.info("TradeManager.watch: {}: Initializing Trade (PENDING): {}", riskType, id);
-                            this.handleSetFillPrice(trade, fillOrder);
+                            trade.setFillPrice(TradeOrder.getPrice(fillOrder));
                             trade.setStatus(OPEN);
                             logger.info("TradeManager.watch: {}: (PENDING -> OPEN): {}", riskType, id);
                         } else if (isCanceled(fillOrder)) {
@@ -232,7 +216,6 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                             logger.info("TradeManager.watch: {}: Order Unfilled (PENDING): {}", riskType, id);
                         }
                     }
-
                     if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
                         setLastAndMaxPrices(trade);
                         double lastPrice = trade.getLastPrice();
@@ -262,14 +245,12 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                             }
                         }
                     }
-
                     allTrades.add(trade);
                     tradeRepository.save(trade);
                     logger.debug("TradeManager.watch: {}: Finish: Saving Trade to Repo: {}", riskType, id);
                 }
             }
         }
-
         new Record<>("TradeManager.watch: " + riskType + ": Completed! Trades:", allTrades);
         return new TradeRecord<>(allTrades, pendingTrades, openTrades, runnerTrades, filledTrades, canceledTrades, rejectedTrades);
     }
@@ -286,7 +267,6 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
     public void sellTrade(SellTradeRecord sellTradeRecord) {
         Long id = sellTradeRecord.id();
         Optional<T> tradeOpt = tradeRepository.findById(id);
-
         if (tradeOpt.isPresent()) {
             T trade = tradeOpt.get();
             prepareMarketSell(trade, STOP);

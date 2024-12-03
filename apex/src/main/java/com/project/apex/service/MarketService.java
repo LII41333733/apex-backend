@@ -7,6 +7,7 @@ import com.project.apex.config.EnvConfig;
 import com.project.apex.data.market.QuoteData;
 import com.project.apex.component.ApiRequest;
 import com.project.apex.component.ClientWebSocket;
+import com.project.apex.data.websocket.WebSocketData;
 import com.project.apex.util.Constants;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
@@ -161,8 +162,7 @@ public class MarketService {
             quoteData.setBid(quote.get("bid").asDouble());
             quoteData.setAsk(quote.get("ask").asDouble());
             optionsMap.put(quoteData.getSymbol(), quoteData);
-            Record<QuoteData> quoteRecord = new Record<>("quote", quoteData);
-            clientWebSocket.sendMessageToAll(Convert.objectToString(quoteRecord));
+            clientWebSocket.sendData(new Record<>(WebSocketData.QUOTE.name(), quoteData));
         } catch (Exception e) {
             System.err.println("Failed to parse message: " + e.getMessage());
         }
@@ -207,7 +207,7 @@ public class MarketService {
 //                        System.out.println("Updated QuoteData: " + quote);
 
                     try {
-                        clientWebSocket.sendMessageToAll(objectMapper.writeValueAsString(quote));
+                        clientWebSocket.sendData(quote);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -224,7 +224,7 @@ public class MarketService {
 
         try {
             String symbolsData = getPriceFull(stripped);
-            clientWebSocket.sendData(new Record<>("symbols", symbolsData));
+            clientWebSocket.sendData(new Record<>(WebSocketData.SYMBOLS.name(), symbolsData));
         } catch (Exception e) {
             logger.error(e.getMessage());
         }

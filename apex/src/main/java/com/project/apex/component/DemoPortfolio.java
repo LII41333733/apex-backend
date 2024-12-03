@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.project.apex.data.trades.TradeFactory;
 import com.project.apex.model.Trade;
-import com.project.apex.records.PortfolioRecord;
 import com.project.apex.util.Record;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.DependsOn;
@@ -31,11 +30,7 @@ public class DemoPortfolio {
         this.clientWebSocket = clientWebSocket;
     }
 
-    public void fetchAllTrades() throws IOException {
-        createVisionChartData();
-    }
-
-    public void createVisionChartData() {
+    public List<Trade> fetchAllTrades() {
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
 
@@ -54,14 +49,11 @@ public class DemoPortfolio {
                 }
             }
 
-            clientWebSocket.sendData(
-                    new Record<>(
-                            "portfolio",
-                            new PortfolioRecord(allTrades)));
         } catch (IOException e) {
             e.printStackTrace();
         }
 
+        return allTrades;
     }
 
     public List<Trade> getAllTrades() {

@@ -41,6 +41,10 @@ public class EnvConfig {
         return environment.equals("production");
     }
 
+    public boolean isDemo() {
+        return environment.equals("demo");
+    }
+
     public String getApiEndpoint() {
         return apiEndpoint;
     }

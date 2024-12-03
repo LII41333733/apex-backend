@@ -11,24 +11,24 @@ public class Schedules {
 
     private final ClientWebSocket clientWebSocket;
     private final OrdersService ordersService;
-    private final AccountService accountService;
-    private final MarketService marketService;
 
     public Schedules(ClientWebSocket clientWebSocket, OrdersService ordersService, MarketService marketService, AccountService accountService) {
         this.clientWebSocket = clientWebSocket;
         this.ordersService = ordersService;
-        this.marketService = marketService;
-        this.accountService = accountService;
     }
 
-    @Scheduled(fixedRate = 10000)
-    public void fetchOrdersActiveClient() {
-        clientWebSocket.fetchOrdersActiveClient();
+    @Scheduled(fixedRate = 20000)
+    public void fetchOrdersActiveClient() throws Exception {
+        if (clientWebSocket.isConnected()) {
+            clientWebSocket.handleActiveClientWebSocketData();
+        }
     }
 
-    @Scheduled(fixedRate = 5000)
+    @Scheduled(fixedRate = 20000)
     public void fetchOrdersInActiveClient() {
-        clientWebSocket.fetchOrdersInActiveClient();
+        if (!clientWebSocket.isConnected()) {
+            ordersService.fetchOrders();
+        }
     }
 
 }

@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.component.ClientWebSocket;
 import com.project.apex.data.trades.*;
 import com.project.apex.data.trades.TradeRecord;
+import com.project.apex.data.websocket.WebSocketData;
 import com.project.apex.model.BaseTrade;
 import com.project.apex.model.LottoTrade;
 import com.project.apex.model.HeroTrade;
+import com.project.apex.model.VisionTrade;
 import com.project.apex.util.Record;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
@@ -49,12 +51,21 @@ public class OrdersService {
             } else {
                 RiskMap ordersByRiskType = handleMapOrdersByRiskType(orders);
                 TradeMap baseTradeMap = ordersByRiskType.get(BASE);
+                TradeMap visionTradeMap = ordersByRiskType.get(VISION);
                 TradeMap lottoTradeMap = ordersByRiskType.get(LOTTO);
                 TradeMap heroTradeMap = ordersByRiskType.get(HERO);
                 TradeRecord<BaseTrade> baseTradeRecord = tradeFactory.watch(BASE, baseTradeMap);
+                TradeRecord<VisionTrade> visionTradeRecord = tradeFactory.watch(VISION, visionTradeMap);
                 TradeRecord<LottoTrade> lottoTradeRecord = tradeFactory.watch(LOTTO, lottoTradeMap);
                 TradeRecord<HeroTrade> heroTradeRecord = tradeFactory.watch(HERO, heroTradeMap);
-                clientWebSocket.sendData(new Record<>("tradeSummary", new TradeSummary(baseTradeRecord, lottoTradeRecord, heroTradeRecord)));
+                clientWebSocket.sendData(
+                        new Record<>(
+                                WebSocketData.POSITIONS.name(),
+                                new TradeSummary(
+                                        baseTradeRecord,
+                                        visionTradeRecord,
+                                        lottoTradeRecord,
+                                        heroTradeRecord)));
             }
         } catch (Exception e) {
             logger.error("OrdersService.fetchOrders: ERROR: Exception: {}", e.getMessage(), e);

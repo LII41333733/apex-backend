@@ -1,6 +1,9 @@
 package com.project.apex.component;
 
+import com.project.apex.config.EnvConfig;
+import com.project.apex.data.account.Balance;
 import com.project.apex.data.trades.TradeFactory;
+import com.project.apex.data.websocket.WebSocketData;
 import com.project.apex.model.Trade;
 import com.project.apex.service.AccountService;
 import com.project.apex.service.MarketService;
@@ -11,7 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -29,9 +31,9 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private final OrdersService ordersService;
     private final MarketStream marketStream;
     private final MarketService marketService;
-    private final TradeFactory tradeFactory;
     private final Portfolio portfolio;
     private final DemoPortfolio demoPortfolio;
+    private final EnvConfig envConfig;
 
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
@@ -42,25 +44,35 @@ public class ClientWebSocket extends TextWebSocketHandler {
                            AccountService accountService,
                            MarketStream marketStream,
                            MarketService marketService,
-                           TradeFactory tradeFactory) {
+                           EnvConfig envConfig) {
         this.ordersService = ordersService;
         this.accountService = accountService;
         this.marketStream = marketStream;
         this.marketService = marketService;
-        this.tradeFactory = tradeFactory;
         this.portfolio = portfolio;
         this.demoPortfolio = demoPortfolio;
+        this.envConfig = envConfig;
+    }
+
+    public void handleActiveClientWebSocketData() throws Exception {
+        marketService.fetchMarketPrices();
+        if (envConfig.isDemo()) {
+            List<Trade> allTrades = demoPortfolio.fetchAllTrades();
+            sendData(new Record<>(WebSocketData.DEMO_TRADES.name(), allTrades));
+            Balance balance = new Balance();
+
+            sendData(new Record<>(WebSocketData.BALANCE.name(), balance));
+        } else {
+            sendData(new Record<>(WebSocketData.BALANCE.name(), accountService.getBalanceData()));
+            ordersService.fetchOrders();
+        }
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         logger.info("WebSocket connection established: " + session.getId());
         sessions.add(session);
-
-        demoPortfolio.fetchAllTrades();
-        sendData(new Record<>("balance", accountService.getBalanceData()));
-        marketService.fetchMarketPrices();
-        ordersService.fetchOrders();
+        handleActiveClientWebSocketData();
     }
 
     @Override
@@ -87,44 +99,21 @@ public class ClientWebSocket extends TextWebSocketHandler {
 
     public void sendData(Object object) throws IOException {
         if (isConnected()) {
-            sendMessageToAll(Convert.objectToString(object));
-        }
-    }
-
-    public void sendMessageToAll(String message) throws IOException {
-        for (WebSocketSession session : sessions) {
-            try {
-                if (session.isOpen()) {
-                    session.sendMessage(new TextMessage(message));
-                } else {
-                    logger.warn("Session is not open: " + session.getId());
+            for (WebSocketSession session : sessions) {
+                try {
+                    if (session.isOpen()) {
+                        session.sendMessage(new TextMessage(Convert.objectToString(object)));
+                    } else {
+                        logger.warn("Session is not open: " + session.getId());
+                    }
+                } catch (IOException e) {
+                    logger.error("IOException: " + e.getMessage(), e);
+                    session.close(CloseStatus.SERVER_ERROR);
+                    sessions.remove(session);
+                } catch (Exception e) {
+                    logger.error(e.getMessage(), e);
                 }
-            } catch (IOException e) {
-                logger.error("IOException: " + e.getMessage(), e);
-                session.close(CloseStatus.SERVER_ERROR);
-                sessions.remove(session);
-            } catch (Exception e) {
-                logger.error(e.getMessage(), e);
             }
-        }
-    }
-
-    public void fetchOrdersActiveClient() {
-        if (isConnected()) {
-            try {
-                ordersService.fetchOrders();
-                marketService.fetchMarketPrices();
-                sendData(new Record<>("balance", accountService.getBalanceData()));
-//                sendData(new Record<>("trades", tradeFactory.fetchAllTrades()));
-            } catch (Exception e) {
-                logger.error("Failed to fetch orders", e);
-            }
-        }
-    }
-
-    public void fetchOrdersInActiveClient() {
-        if (sessions.isEmpty()) {
-            ordersService.fetchOrders();
         }
     }
 
@@ -136,5 +125,9 @@ public class ClientWebSocket extends TextWebSocketHandler {
         if (!connected) {
             sessions.clear();
         }
+    }
+
+    public List<WebSocketSession> getSessions() {
+        return sessions;
     }
 }

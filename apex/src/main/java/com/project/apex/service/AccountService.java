@@ -113,7 +113,7 @@ public class AccountService {
         JsonNode balances = balancesJson.get("balances");
 
         if (balances != null) {
-            if (envConfig.isSandbox()) {
+            if (envConfig.isSandbox() || envConfig.isDemo()) {
                 Double totalCash = balances.get("total_cash").asDouble();
                 balance.setUnsettledFunds((double) 0);
                 balance.setCashAvailable(totalCash);

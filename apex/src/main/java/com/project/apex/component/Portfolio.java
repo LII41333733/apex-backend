@@ -3,8 +3,8 @@ package com.project.apex.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.project.apex.data.trades.TradeFactory;
+import com.project.apex.data.websocket.WebSocketData;
 import com.project.apex.model.Trade;
-import com.project.apex.records.PortfolioRecord;
 import com.project.apex.util.Record;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -54,10 +54,7 @@ public class Portfolio {
                 }
             }
 
-            clientWebSocket.sendData(
-                    new Record<>(
-                            "portfolio",
-                            new PortfolioRecord(allTrades)));
+            clientWebSocket.sendData(new Record<>(WebSocketData.TRADES.name(), allTrades));
         } catch (IOException e) {
             e.printStackTrace();
         }
