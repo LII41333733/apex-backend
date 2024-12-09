@@ -10,9 +10,12 @@ import com.project.apex.service.MarketService;
 import com.project.apex.service.OrdersService;
 import com.project.apex.util.Convert;
 import com.project.apex.util.Record;
+import org.javacord.api.DiscordApi;
+import org.javacord.api.DiscordApiBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
@@ -25,6 +28,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 @Component
 public class ClientWebSocket extends TextWebSocketHandler {
+
+    @Value("${discord.token}")
+    public String discordToken;
 
     private static final Logger logger = LoggerFactory.getLogger(ClientWebSocket.class);
     private final AccountService accountService;
@@ -64,8 +70,8 @@ public class ClientWebSocket extends TextWebSocketHandler {
             sendData(new Record<>(WebSocketData.BALANCE.name(), balance));
         } else {
             sendData(new Record<>(WebSocketData.BALANCE.name(), accountService.getBalanceData()));
-            ordersService.fetchOrders();
         }
+            ordersService.fetchOrders();
     }
 
     @Override
