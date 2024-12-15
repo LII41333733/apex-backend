@@ -197,7 +197,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                         logger.info("TradeManager.watch: {}: (NEW -> PENDING): {}", riskType, id);
                     }
                     if (trade.isPending()) {
-                        if (isOpen(fillOrder) || isFilled(fillOrder)) {
+                        if (isFilled(fillOrder)) {
                             logger.info("TradeManager.watch: {}: Order Filled (PENDING): {}", riskType, id);
                             logger.info("TradeManager.watch: {}: Initializing Trade (PENDING): {}", riskType, id);
                             trade.setFillPrice(TradeOrder.getPrice(fillOrder));
@@ -212,6 +212,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                             rejectedTrades.add(id);
                             logger.info("TradeManager.watch: {}: Order Rejected: {}", riskType, id);
                         } else {
+                            trade.setFillPrice(TradeOrder.getPrice(fillOrder));
                             pendingTrades.add(id);
                             logger.info("TradeManager.watch: {}: Order Unfilled (PENDING): {}", riskType, id);
                         }

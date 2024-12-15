@@ -17,9 +17,9 @@ public class LottoTrade extends Trade implements Trim1Tradeable {
     private Integer trim1Quantity = 0;
 
     @Transient
-    private final double stopLossPercentage = 0.75;
+    private final double stopLossPercentage = 0.50;
     @Transient
-    private final double trim1Percentage = 0.75;
+    private final double trim1Percentage = 0.50;
     @Transient
     private final double runnersFloorPercentage = 0.25;
 

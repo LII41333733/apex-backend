@@ -222,11 +222,11 @@ public class TradeSimulator {
     }
 
     public double getRandomRunnerPrice(double price) {
-        return roundedDouble(price * getRandomValue(2.00, 4.00));
+        return roundedDouble(price * getRandomValue(2.00, 2.50));
     }
 
     public double getRandomHeroPrice(double price) {
-        return roundedDouble(price * getRandomValue(2.00, 4.00));
+        return roundedDouble(price * getRandomValue(2.50, 3.00));
     }
 
     public double getRandomValue(double min, double max) {

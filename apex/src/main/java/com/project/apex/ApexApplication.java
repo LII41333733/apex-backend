@@ -17,12 +17,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @EnableTransactionManagement
 public class ApexApplication {
 
-
-
 	public static void main(String[] args) {
-
-
-
 		SpringApplication.run(ApexApplication.class, args);
 	}
 

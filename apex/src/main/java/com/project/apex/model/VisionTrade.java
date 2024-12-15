@@ -24,11 +24,11 @@ public class VisionTrade extends Trade implements Trim1Tradeable, Trim2Tradeable
     private Integer trim2Quantity = 0;
 
     @Transient
-    private final double stopLossPercentage = 0.40;
+    private final double stopLossPercentage = 0.30;
     @Transient
-    private final double trim1Percentage = 0.25;
+    private final double trim1Percentage = 0.30;
     @Transient
-    private final double trim2Percentage = 0.50;
+    private final double trim2Percentage = 0.60;
     @Transient
     private final double runnersFloorPercentage = 0.25;
 
