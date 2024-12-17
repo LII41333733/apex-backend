@@ -30,11 +30,7 @@ public class HeroTradeService extends TradeService<HeroTrade> {
         int runnersQuantity = trade.getQuantity();
         double ask = trade.getFillPrice();
         double stopPrice = 0.02;
-        double targetPrice = roundedDouble(ask * (1 + trade.getTargetPercentage()));
-        double initialRunnersFloor = roundedDouble(targetPrice / (1 + trade.getRunnersFloorDeltaPercentage()));
         trade.setStopPrice(stopPrice);
-        trade.setRunnersFloorPrice(initialRunnersFloor);
-        trade.setRunnersDelta(roundedDouble(targetPrice - initialRunnersFloor));
         trade.setFillPrice(ask);
         trade.setRunnersQuantity(runnersQuantity);
         trade.setTradeAmount(getValueByQuantity(trade.getQuantity(), ask));

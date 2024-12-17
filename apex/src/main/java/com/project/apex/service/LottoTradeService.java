@@ -32,13 +32,10 @@ public class LottoTradeService extends TradeService<LottoTrade> {
         int trim1Quantity = (int) Math.round(trade.getQuantity() * 0.7);
         int runnersQuantity = trade.getQuantity() - trim1Quantity;
         double ask = trade.getFillPrice();
-        double stopPrice = roundedDouble(ask * (1 - trade.getStopLossPercentage()));
+        double stopPrice = roundedDouble(ask * (1 - trade.getStopPercentage()));
         double trim1Price = roundedDouble(ask * (1 + trade.getTrim1Percentage()));
-        double initialRunnersFloorPrice = roundedDouble(trim1Price / (1 + trade.getRunnersFloorPercentage()));
         trade.setStopPrice(stopPrice);
         trade.setTrim1Price(trim1Price);
-        trade.setRunnersFloorPrice(initialRunnersFloorPrice);
-        trade.setRunnersDelta(roundedDouble(trade.getTrim1Price() - initialRunnersFloorPrice));
         trade.setFillPrice(ask);
         trade.setTrim1Quantity(trim1Quantity);
         trade.setRunnersQuantity(runnersQuantity);

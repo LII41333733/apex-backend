@@ -33,15 +33,12 @@ public class VisionTradeService extends TradeService<VisionTrade> {
         int trim2Quantity = quantities.get(1);
         int runnersQuantity = quantities.get(2);
         double ask = trade.getFillPrice();
-        double stopPrice = roundedDouble(ask * (1 - trade.getStopLossPercentage()));
+        double stopPrice = roundedDouble(ask * (1 - trade.getStopPercentage()));
         double trim1Price = roundedDouble(ask * (1 + trade.getTrim1Percentage()));
         double trim2Price = roundedDouble(ask * (1 + trade.getTrim2Percentage()));
-        double initialRunnersFloorPrice = roundedDouble(trim2Price / (1 + trade.getRunnersFloorPercentage()));
         trade.setStopPrice(stopPrice);
         trade.setTrim1Price(trim1Price);
         trade.setTrim2Price(trim2Price);
-        trade.setRunnersFloorPrice(initialRunnersFloorPrice);
-        trade.setRunnersDelta(roundedDouble(trade.getTrim2Price() - initialRunnersFloorPrice));
         trade.setFillPrice(ask);
         trade.setTrim1Quantity(trim1Quantity);
         trade.setTrim2Quantity(trim2Quantity);

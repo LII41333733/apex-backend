@@ -7,7 +7,6 @@ import com.project.apex.data.trades.RiskType;
 import com.project.apex.data.trades.TradeStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.Arrays;
 
 import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.data.trades.TradeStatus.FINALIZED;
@@ -66,12 +65,14 @@ public abstract class Trade {
     private Double stopPriceFinal = 0.0;
     @Column(name = "runners_floor_price")
     private Double runnersFloorPrice;
-    @Column(name = "runners_delta")
-    private Double runnersDelta;
     @Column(name = "quantity")
     private Integer quantity = 0;
     @Column(name = "runners_quantity")
     private Integer runnersQuantity = 0;
+    @Column(name = "stop_percentage")
+    private Double stopPercentage = (double) 0;
+    @Column(name = "runners_floor_percentage")
+    private Double runnersFloorPercentage = (double) 0;
 
     @JsonIgnore
     @Transient
@@ -82,10 +83,12 @@ public abstract class Trade {
 
     public Trade(RiskType riskType,
                  double tradeAmountPercentage,
+                 double stopPercentage,
                  int[] demoOutcomePercentages) {
         this.riskType = riskType;
         this.tradeAmountPercentage = tradeAmountPercentage;
         this.demoOutcomePercentages = demoOutcomePercentages;
+        this.stopPercentage = stopPercentage;
     }
 
     @JsonIgnore
@@ -243,12 +246,6 @@ public abstract class Trade {
     public void setRunnersFloorPrice(Double runnersFloorPrice) {
         this.runnersFloorPrice = runnersFloorPrice;
     }
-    public Double getRunnersDelta() {
-        return runnersDelta;
-    }
-    public void setRunnersDelta(Double runnersDelta) {
-        this.runnersDelta = runnersDelta;
-    }
     public Integer getRunnersQuantity() {
         return runnersQuantity;
     }
@@ -264,5 +261,15 @@ public abstract class Trade {
     public RiskType getRiskType() {
         return riskType;
     }
+    public Double getStopPercentage() {
+        return stopPercentage;
+    }
 
+    public Double getRunnersFloorPercentage() {
+        return runnersFloorPercentage;
+    }
+
+    public void setRunnersFloorPercentage(Double runnersFloorPercentage) {
+        this.runnersFloorPercentage = runnersFloorPercentage;
+    }
 }

@@ -1,6 +1,6 @@
-package com.project.apex.interfaces;
+package com.project.apex.data.trades;
 
-public interface Trim2Tradeable {
+public interface Trim2TradeableImpl {
 
     Double getTrim2Price();
     void setTrim2Price(Double trim2Price);
