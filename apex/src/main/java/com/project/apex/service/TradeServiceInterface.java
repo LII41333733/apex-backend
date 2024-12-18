@@ -14,6 +14,6 @@ public interface TradeServiceInterface<T extends Trade> {
     void handleOpenTrades(T trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades);
     void finalizeTrade(T trade, TradeLegMap tradeLegMap);
     void sellTrade(SellTradeRecord sellTradeRecord);
-    boolean prepareMarketSell(T trade, TradeLeg tradeLeg);
+    void prepareMarketSell(T trade, TradeLeg tradeLeg);
 
 }

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.*;
 import static com.project.apex.data.trades.TradeStatus.RUNNERS;
+import static com.project.apex.util.Calculate.getPercentValue;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
@@ -49,54 +50,40 @@ public class VisionTradeService extends TradeService<VisionTrade> {
 
     @Override
     public void handleOpenTrades(VisionTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
-        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price())) {
-            trade.setTrimStatus((byte) 1);
-            logger.info("VisionTradeManager.watch: {}: Trim 1 Hit! Setting Stops to Break Even: {}", riskType, id);
-            if (prepareMarketSell(trade, TRIM1)) {
-                trade.setStopPrice(trade.getFillPrice());
+        if (trade.getTrimStatus() == 0 && (lastPrice >= trade.getTrim1Price())) {
+            logger.info("VisionTradeManager.watch: {}: Trim 1 Hit! Floor is Active: {}", riskType, id);
+            trade.setTrimStatus(1);
+            prepareMarketSell(trade, TRIM1);
+            trade.setRunnersFloorIsActive(true);
+            double floorPrice = getPercentValue(trade.getFillPrice(), 0.4);
+            trade.setStopPrice(Math.max(trade.getFillPrice(), floorPrice));
+        }
+
+        if (trade.getTrimStatus() == 1) {
+            double floorPrice = getPercentValue(lastPrice, 0.4);
+            if (trade.getStopPrice() < floorPrice) {
+                logger.info("LottoTradeManager.watch: {}: New Floor: {}", riskType, floorPrice);
+                trade.setStopPrice(floorPrice);
             }
         }
 
         if (trade.getTrimStatus() < 2 && (lastPrice >= trade.getTrim2Price()) && trade.getTrim2Quantity() > 0) {
-            trade.setTrimStatus((byte) 2);
-            logger.info("VisionTradeManager.watch: {}: Trim 2 Hit! Moving Stops: {}", riskType, id);
+            logger.info("VisionTradeManager.watch: {}: Trim 2 Hit! Moving Stops: {} (OPEN -> RUNNERS)", riskType, id);
+            trade.setTrimStatus(2);
             prepareMarketSell(trade, TRIM2);
-            trade.setStopPrice(trade.getRunnersFloorPrice());
             trade.setStatus(RUNNERS);
-            logger.info("VisionTradeManager.watch: {}: (OPEN -> RUNNERS): {}", riskType, id);
+            double floorPrice = getPercentValue(lastPrice, 0.25);
+            trade.setStopPrice(floorPrice);
         }
 
-        if (trade.getTrimStatus() > 1 && trade.getRunnersQuantity() > 0) {
-            runnerTrades.add(id);
-            logger.info("VisionTradeManager.watch: {}: Last Price: {}", riskType, lastPrice);
-            logger.info("VisionTradeManager.watch: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());
-            if (lastPrice > (trade.getStopPrice() + trade.getRunnersDelta())) {
-                double newFloor = roundedDouble(lastPrice - trade.getRunnersDelta());
-                logger.info("VisionTradeManager.watch: {}: New Floor: {}", riskType, newFloor);
-                trade.setStopPrice(newFloor);
+        if (trade.getTrimStatus() == 2) {
+            double floorPrice = getPercentValue(lastPrice, 0.25);
+            if (trade.getStopPrice() < floorPrice)
+                logger.info("LottoTradeManager.watch: {}: New Floor: {}", riskType, floorPrice);{
+                trade.setStopPrice(floorPrice);
             }
+            runnerTrades.add(id);
         }
-    }
-
-    @Override
-    public boolean prepareMarketSell(VisionTrade trade, TradeLeg tradeLeg) {
-        logger.info("placeMarketSell: Start");
-        Map<String, String> parameters = new HashMap<>();
-
-        int quantity = switch (tradeLeg) {
-            case TRIM1 -> trade.getTrim1Quantity();
-            case TRIM2 -> trade.getTrim2Quantity();
-            case STOP -> switch (trade.getTrimStatus()) {
-                case 0 -> trade.getTrim1Quantity() + trade.getTrim2Quantity() + trade.getRunnersQuantity();
-                case 1 -> trade.getTrim2Quantity() + trade.getRunnersQuantity();
-                case 2 -> trade.getRunnersQuantity();
-                default -> throw new IllegalStateException("Unexpected value: " + trade.getTrimStatus());
-            };
-            default -> throw new IllegalStateException("Unexpected value: " + tradeLeg);
-        };
-
-        parameters.put("quantity", String.valueOf(quantity));
-        return super.placeMarketSell(trade, tradeLeg, parameters);
     }
 
     @Override

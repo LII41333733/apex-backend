@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeLeg.TRIM1;
-import static com.project.apex.data.trades.TradeStatus.RUNNERS;
+import static com.project.apex.util.Calculate.getPercentValue;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
@@ -45,44 +45,23 @@ public class LottoTradeService extends TradeService<LottoTrade> {
 
     @Override
     public void handleOpenTrades(LottoTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
-        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getTrim1Price()) && trade.getRunnersQuantity() > 0) {
-            trade.setTrimStatus((byte) 1);
-            logger.info("LottoTradeManager.watch: {}: Trim 1 Hit!: {}", riskType, id);
+        if (trade.getTrimStatus() == 0 && (lastPrice >= trade.getTrim1Price())) {
+            logger.info("LottoTradeManager.watch: {}: Trim 1 Hit! Floor is Active: {}", riskType, id);
+            trade.setTrimStatus(1);
             prepareMarketSell(trade, TRIM1);
-            trade.setStopPrice(trade.getRunnersFloorPrice());
-            trade.setStatus(RUNNERS);
-            logger.info("LottoTradeManager.watch: {}: (OPEN -> RUNNERS): {}", riskType, id);
+            trade.setRunnersFloorIsActive(true);
+            double floorPrice = getPercentValue(trade.getFillPrice(), 0.4);
+            trade.setStopPrice(Math.max(trade.getFillPrice(), floorPrice));
         }
 
-        if (trade.getTrimStatus() > 0) {
-            runnerTrades.add(id);
-            logger.info("LottoTradeManager.watch: {}: Last Price: {}", riskType, lastPrice);
-            logger.info("LottoTradeManager.watch: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());
-            if (lastPrice > (trade.getStopPrice() + trade.getRunnersDelta())) {
-                double newFloor = roundedDouble(lastPrice - trade.getRunnersDelta());
-                logger.info("LottoTradeManager.watch: {}: New Floor: {}", riskType, newFloor);
-                trade.setStopPrice(newFloor);
+        if (trade.getTrimStatus() == 1) {
+            double floorPrice = getPercentValue(lastPrice, 0.4);
+            if (trade.getStopPrice() < floorPrice) {
+                logger.info("LottoTradeManager.watch: {}: New Floor: {}", riskType, floorPrice);
+                trade.setStopPrice(floorPrice);
             }
+            runnerTrades.add(id);
         }
-    }
-
-    @Override
-    public boolean prepareMarketSell(LottoTrade trade, TradeLeg tradeLeg) {
-        logger.info("LottoTradeService.placeMarketSell: Start");
-        Map<String, String> parameters = new HashMap<>();
-
-        int quantity = switch (tradeLeg) {
-            case TRIM1 -> trade.getTrim1Quantity();
-            case STOP -> switch (trade.getTrimStatus()) {
-                    case 0 -> trade.getTrim1Quantity() + trade.getRunnersQuantity();
-                    case 1 -> trade.getRunnersQuantity();
-                    default -> throw new IllegalStateException("Unexpected value: " + trade.getTrimStatus());
-            };
-            default -> throw new IllegalStateException("Unexpected value: " + tradeLeg);
-        };
-
-        parameters.put("quantity", String.valueOf(quantity));
-        return super.placeMarketSell(trade, tradeLeg, parameters);
     }
 
     @Override

@@ -71,8 +71,8 @@ public abstract class Trade {
     private Integer runnersQuantity = 0;
     @Column(name = "stop_percentage")
     private Double stopPercentage = (double) 0;
-    @Column(name = "runners_floor_percentage")
-    private Double runnersFloorPercentage = (double) 0;
+    @Column(name = "runners_floor_active")
+    private Boolean runnersFloorIsActive = false;
 
     @JsonIgnore
     @Transient
@@ -240,12 +240,6 @@ public abstract class Trade {
     public void setStopPrice(Double stopPrice) {
         this.stopPrice = stopPrice;
     }
-    public Double getRunnersFloorPrice() {
-        return runnersFloorPrice;
-    }
-    public void setRunnersFloorPrice(Double runnersFloorPrice) {
-        this.runnersFloorPrice = runnersFloorPrice;
-    }
     public Integer getRunnersQuantity() {
         return runnersQuantity;
     }
@@ -264,12 +258,10 @@ public abstract class Trade {
     public Double getStopPercentage() {
         return stopPercentage;
     }
-
-    public Double getRunnersFloorPercentage() {
-        return runnersFloorPercentage;
+    public Boolean getRunnersFloorIsActive() {
+        return runnersFloorIsActive;
     }
-
-    public void setRunnersFloorPercentage(Double runnersFloorPercentage) {
-        this.runnersFloorPercentage = runnersFloorPercentage;
+    public void setRunnersFloorIsActive(Boolean runnersFloorIsActive) {
+        this.runnersFloorIsActive = runnersFloorIsActive;
     }
 }

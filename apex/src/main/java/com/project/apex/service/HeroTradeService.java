@@ -11,7 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.STOP;
+import static com.project.apex.data.trades.TradeLeg.TRIM1;
 import static com.project.apex.data.trades.TradeStatus.RUNNERS;
+import static com.project.apex.util.Calculate.getPercentValue;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
@@ -27,44 +29,31 @@ public class HeroTradeService extends TradeService<HeroTrade> {
 
     @Override
     public void calculateStopsAndTrims(HeroTrade trade) {
-        int runnersQuantity = trade.getQuantity();
         double ask = trade.getFillPrice();
         double stopPrice = 0.02;
         trade.setStopPrice(stopPrice);
         trade.setFillPrice(ask);
-        trade.setRunnersQuantity(runnersQuantity);
+        trade.setRunnersQuantity(trade.getQuantity());
         trade.setTradeAmount(getValueByQuantity(trade.getQuantity(), ask));
         new Record<>("calculateStopsAndTrims", trade);
     }
 
     @Override
     public void handleOpenTrades(HeroTrade trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades) {
-        if (trade.getTrimStatus() < 1 && (lastPrice >= trade.getRunnersFloorPrice() + trade.getRunnersDelta())) {
-            trade.setTrimStatus((byte) 1);
-            logger.info("handleOpenTrades: {}: Moving Floor Engaged!: {}", riskType, id);
-            trade.setStopPrice(trade.getRunnersFloorPrice());
+        runnerTrades.add(id);
+        if (trade.getStatus() != RUNNERS) {
+            logger.info("HeroTradeManager.watch: {}: Floor is Active: {}", riskType, id);
             trade.setStatus(RUNNERS);
-            logger.info("handleOpenTrades: {}: (OPEN -> RUNNERS): {}", riskType, id);
-        }
-
-        if (trade.getTrimStatus() > 0) {
-            runnerTrades.add(id);
-            logger.info("handleOpenTrades: {}: Last Price: {}", riskType, lastPrice);
-            logger.info("handleOpenTrades: {}: Last Price > Stop Price: {}", riskType, lastPrice > trade.getStopPrice());
-            if (lastPrice > (trade.getStopPrice() + trade.getRunnersDelta())) {
-                double newFloor = roundedDouble(lastPrice - trade.getRunnersDelta());
-                logger.info("handleOpenTrades: {}: New Floor: {}", riskType, newFloor);
-                trade.setStopPrice(newFloor);
+            trade.setRunnersFloorIsActive(true);
+            double floorPrice = getPercentValue(trade.getFillPrice(), 0.4);
+            trade.setStopPrice(floorPrice);
+        } else {
+            double lastFloorPrice = getPercentValue(lastPrice, 0.4);
+            if (trade.getStopPrice() < lastFloorPrice) {
+                trade.setStopPrice(lastFloorPrice);
+                logger.info("LottoTradeManager.watch: {}: New Floor: {}", riskType, lastFloorPrice);
             }
         }
-    }
-
-    @Override
-    public boolean prepareMarketSell(HeroTrade trade, TradeLeg tradeLeg) {
-        logger.info("placeMarketSell: Start");
-        Map<String, String> parameters = new HashMap<>();
-        parameters.put("quantity", String.valueOf(trade.getQuantity()));
-        return super.placeMarketSell(trade, tradeLeg, parameters);
     }
 
     @Override
@@ -73,9 +62,8 @@ public class HeroTradeService extends TradeService<HeroTrade> {
         int totalQuantity = trade.getQuantity();
         JsonNode stop = tradeLegMap.get(STOP);
         new Record<>("Stop Order", stop);
-        double finalStopPrice = getPrice(stop);
-        trade.setStopPriceFinal(finalStopPrice);
-        trade.setFinalAmount((int) (trade.getFinalAmount() + (totalQuantity * (finalStopPrice * 100))));
+        trade.setStopPriceFinal(getPrice(stop));
+        trade.setFinalAmount((int) (trade.getFinalAmount() + (totalQuantity * (getPrice(stop) * 100))));
         trade.setCloseDate(getCloseDate(stop));
         trade.setPl(trade.getFinalAmount() - trade.getTradeAmount());
         trade.setPostTradeBalance(trade.getPreTradeBalance() + trade.getPl());

@@ -8,7 +8,6 @@ import com.project.apex.model.Trade;
 import com.project.apex.model.VisionTrade;
 import com.project.apex.repository.TradeRepository;
 import com.project.apex.util.Convert;
-import com.project.apex.util.Quantities;
 import com.project.apex.util.Record;
 import com.project.apex.util.TradeOrder;
 import org.slf4j.Logger;
@@ -21,7 +20,6 @@ import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.FILL;
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeStatus.*;
-import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 import static com.project.apex.util.TradeOrder.isRejected;
 
@@ -136,9 +134,8 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         }
     }
 
-    public boolean placeMarketSell(T trade, TradeLeg tradeLeg, Map<String, String> parameters) {
+    public void placeMarketSell(T trade, TradeLeg tradeLeg, Map<String, String> parameters) {
         logger.info("TradeService.placeMarketSell: Start");
-        boolean result = true;
         try {
             parameters.put("class", "option");
             parameters.put("duration", "day");
@@ -159,9 +156,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
             }
         } catch (Exception e) {
             logger.error("TradeService.placeMarketSell: ERROR: Exception: {}, ID: {}", e.getMessage(), trade.getId(), e);
-            result = false;
         }
-        return result;
     }
 
     public TradeRecord<T> watch(RiskType riskType, TradeMap tradeMap) throws IOException, URISyntaxException {
@@ -256,6 +251,56 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         return new TradeRecord<>(allTrades, pendingTrades, openTrades, runnerTrades, filledTrades, canceledTrades, rejectedTrades);
     }
 
+    public int addQuantitiesByLimit(List<Integer> quantities, int limit, boolean isExactIndex) {
+        if (isExactIndex) {
+            return quantities.get(limit);
+        }
+        return quantities.stream().limit(limit).mapToInt(Integer::intValue).sum();
+    }
+
+    public void prepareMarketSell(T trade, TradeLeg tradeLeg) {
+        logger.info("placeMarketSell: Start");
+        Map<String, String> parameters = new HashMap<>();
+        Integer quantity;
+        if (trade instanceof Trim2Tradeable trim2Tradeable) {
+            List<Integer> quantities = List.of(
+                    trim2Tradeable.getTrim1Quantity(),
+                    trim2Tradeable.getTrim2Quantity(),
+                    trim2Tradeable.getRunnersQuantity());
+
+            quantity = switch (tradeLeg) {
+                case TRIM1 -> addQuantitiesByLimit(quantities, 0, true);
+                case TRIM2 -> addQuantitiesByLimit(quantities, 1, true);
+                case STOP -> switch (trade.getTrimStatus()) {
+                    case 0 -> addQuantitiesByLimit(quantities, 3, false);
+                    case 1 -> addQuantitiesByLimit(quantities.reversed(), 2, false);
+                    case 2 -> addQuantitiesByLimit(quantities.reversed(), 1, false);
+                    default -> throw new IllegalStateException("Unexpected value: " + trade.getTrimStatus());
+                };
+                default -> throw new IllegalStateException("Unexpected value: " + tradeLeg);
+            };
+        } else if (trade instanceof Trim1Tradeable trim1Tradeable) {
+            List<Integer> quantities = List.of(
+                    trim1Tradeable.getTrim1Quantity(),
+                    trim1Tradeable.getRunnersQuantity());
+
+            quantity = switch (tradeLeg) {
+                case TRIM1 -> addQuantitiesByLimit(quantities, 0, true);
+                case STOP -> switch (trade.getTrimStatus()) {
+                    case 0 -> addQuantitiesByLimit(quantities, 2, false);
+                    case 1 -> trim1Tradeable.getRunnersQuantity();
+                    default -> throw new IllegalStateException("Unexpected value: " + trade.getTrimStatus());
+                };
+                default -> throw new IllegalStateException("Unexpected value: " + tradeLeg);
+            };
+        } else {
+            quantity = trade.getQuantity();
+        }
+
+        parameters.put("quantity", String.valueOf(quantity));
+        placeMarketSell(trade, tradeLeg, parameters);
+    }
+
     public void setLastAndMaxPrices(T trade) throws IOException, URISyntaxException {
         logger.debug("BaseTradeService.setLastAndMaxPrices: Start: {}", trade.getId());
         JsonNode quote = marketService.getPrices(trade.getOptionSymbol());
@@ -282,5 +327,4 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
     public abstract void calculateStopsAndTrims(T trade);
     public abstract void handleOpenTrades(T trade, double lastPrice, Long id, RiskType riskType, List<Long> runnerTrades);
     public abstract void finalizeTrade(T trade, TradeLegMap tradeLegMap);
-    public abstract boolean prepareMarketSell(T trade, TradeLeg tradeLeg);
 }
