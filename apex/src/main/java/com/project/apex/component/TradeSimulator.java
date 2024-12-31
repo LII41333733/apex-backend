@@ -37,17 +37,17 @@ public class TradeSimulator {
 
     @PostConstruct
     public void init() {
-        while (trades.isEmpty() || trades.get(trades.size() - 1).getPostTradeBalance() < 600000) {
+        while (trades.isEmpty() || trades.get(trades.size() - 1).getPostTradeBalance() < 75000) {
             try {
                 Trade trade = createRandomTrade();
                 prepareTrade(trade);
-                simulateTrade(trade, false);
+                simulateTrade(trade);
                 trade = createRandomTrade();
                 prepareTrade(trade);
-                simulateTrade(trade, false);
-                trade = createRandomTrade();
-                prepareTrade(trade);
-                simulateTrade(trade, true);
+                simulateTrade(trade);
+//                trade = createRandomTrade();
+//                prepareTrade(trade);
+//                simulateTrade(trade);
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
@@ -56,6 +56,7 @@ public class TradeSimulator {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        handleDates();
 
         try {
             mapper.writeValue(new File("demoTrades.json"), trades);
@@ -65,8 +66,26 @@ public class TradeSimulator {
         }
     }
 
+    public void handleDates() {
+        for (int i = trades.size() - 1 ; i > -1; i--) {
+            if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
+                currentDate = currentDate.with(DayOfWeek.FRIDAY);
+            }
+            trades.get(i).setOpenDate(currentDate.withHour(9).withMinute(30).withSecond(0).withNano(0));
+            trades.get(i).setCloseDate(currentDate.withHour(16).withMinute(0).withSecond(0).withNano(0));
+
+            if (i % 4 == 0) {
+                currentDate = switch (currentDate.getDayOfWeek()) {
+                    case MONDAY -> currentDate.minusDays(3);
+                    case SUNDAY -> currentDate.minusDays(2);
+                    default -> currentDate.minusDays(1);
+                };
+            }
+        }
+    }
+
     public Trade createRandomTrade() {
-        List<RiskType> choices = List.of(BASE, BASE, BASE, BASE, BASE, VISION, VISION, VISION, LOTTO, LOTTO, LOTTO, HERO, HERO);
+        List<RiskType> choices = List.of(Base, Base, Base, Base, Base, Vision, Vision, Vision, Lotto, Lotto, Lotto, Hero, Hero);
         int randomNumber = (int) (Math.random() * choices.size());
         RiskType riskType = choices.get(randomNumber);
         tradeService = tradeFactory.getTradeService(riskType);
@@ -75,11 +94,17 @@ public class TradeSimulator {
 
     public void prepareTrade(Trade trade) throws Exception {
         Long id = Convert.getMomentAsCode() + (trades.size() + 1);
-        boolean isVisionTrade = trade instanceof VisionTrade;
-        double ask = isVisionTrade ? getRandomVisionFillPrice() : getRandomFillPrice();
+        double ask = getRandomFillPrice();
         int askPrice = (int) (ask * 100);
         double balance = trades.isEmpty() ? 10000 : trades.get(trades.size() - 1).getPostTradeBalance();
-        int tradeAllotment = isVisionTrade ? 100 : (int) Math.floor(balance * trade.getTradeAmountPercentage());
+
+        Double tradeAmountAllotment = trade.getTradeProfile().getTradeAmountAllotment();
+        Double tradeAmountPercentage = trade.getTradeProfile().getTradeAmountPercentage();
+
+        int tradeAllotment = (int) (tradeAmountAllotment != null
+                ? tradeAmountAllotment
+                : Math.floor(balance * tradeAmountPercentage));
+
         if (askPrice > tradeAllotment) {
             System.out.println("ask: " + askPrice);
             System.out.println("allotment: " + tradeAllotment);
@@ -106,8 +131,8 @@ public class TradeSimulator {
         return tradeValue + (currentValue - initialValue);
     }
 
-    public void simulateTrade(Trade trade, boolean changeDay) {
-        int[] trimResultPercentages = trade.getDemoOutcomePercentages();
+    public void simulateTrade(Trade trade) {
+        int[] trimResultPercentages = trade.getTradeProfile().getDemoOutcomePercentages();
         Integer tradeValue = trade.getTradeAmount();
         int tradeStage = 0;
         int quantity = trade.getQuantity();
@@ -184,21 +209,6 @@ public class TradeSimulator {
         }
 
         trade.setStopPriceFinal(trade.getLastPrice());
-
-        if (currentDate.getDayOfWeek() == DayOfWeek.SATURDAY || currentDate.getDayOfWeek() == DayOfWeek.SUNDAY) {
-            currentDate = currentDate.with(DayOfWeek.FRIDAY);
-        }
-        trade.setOpenDate(currentDate.withHour(9).withMinute(30).withSecond(0).withNano(0));
-        trade.setCloseDate(currentDate.withHour(16).withMinute(0).withSecond(0).withNano(0));
-
-        if (changeDay) {
-            currentDate = switch (currentDate.getDayOfWeek()) {
-                case MONDAY -> currentDate.minusDays(3);
-                case SUNDAY -> currentDate.minusDays(2);
-                default -> currentDate.minusDays(1);
-            };
-        }
-
         trades.add(trade);
     }
 
@@ -209,19 +219,15 @@ public class TradeSimulator {
     }
 
     public double getRandomFillPrice() {
-        return roundedDouble(getRandomValue(.20, 2.00));
-    }
-
-    public double getRandomVisionFillPrice() {
-        return roundedDouble(getRandomValue(.05, 1.00));
+        return roundedDouble(getRandomValue(.10, 2.00));
     }
 
     public double getRandomRunnerPrice(double price) {
-        return roundedDouble(price * getRandomValue(2.00, 2.50));
+        return roundedDouble(price * getRandomValue(2.50, 4));
     }
 
     public double getRandomHeroPrice(double price) {
-        return roundedDouble(price * getRandomValue(2.50, 3.00));
+        return roundedDouble(price * getRandomValue(3, 4.50));
     }
 
     public double getRandomValue(double min, double max) {
@@ -233,6 +239,5 @@ public class TradeSimulator {
     }
 
     private static final String[] strikes = {"241001C00571000", "241001P00567000", "241018C00232500", "240919C00572000", "240919P00564000", "241018C00051000", "240919C00574000", "241018C00051500", "241018C00139000", "241018P00182500", "241018P00028000", "241018P00222500", "241018C00192500", "241018C00082500", "241018C00232500", "240920P00565000", "240920C00232500", "240927C00165000", "241025C00230000", "241025C00048000", "241025C00160000", "241025C00148000", "241025C00083000", "240927C00260000", "240927C00255000", "240927C00405000", "241004C00041000", "241004C00270000", "241004C00122000", "241004C00580000", "241004C00039500", "241004C00262500", "241004C00043250", "241004C00165000", "241011C00043000", "241011C00195000", "241011C00252500", "241011C00047000", "241011C00257500", "241011C00595000"};
-    private static final RiskType[] riskTypes = {BASE, LOTTO, VISION, HERO};
 
 }

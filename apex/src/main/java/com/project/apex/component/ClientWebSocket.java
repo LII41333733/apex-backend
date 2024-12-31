@@ -2,7 +2,9 @@ package com.project.apex.component;
 
 import com.project.apex.config.EnvConfig;
 import com.project.apex.data.account.Balance;
+import com.project.apex.data.trades.RiskType;
 import com.project.apex.data.trades.TradeFactory;
+import com.project.apex.data.trades.TradeProfile;
 import com.project.apex.data.websocket.WebSocketData;
 import com.project.apex.model.Trade;
 import com.project.apex.service.AccountService;
@@ -24,6 +26,7 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 @Component
@@ -40,6 +43,7 @@ public class ClientWebSocket extends TextWebSocketHandler {
     private final Portfolio portfolio;
     private final DemoPortfolio demoPortfolio;
     private final EnvConfig envConfig;
+    private final Map<RiskType, TradeProfile> tradeProfiles;
 
     private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
 
@@ -50,7 +54,8 @@ public class ClientWebSocket extends TextWebSocketHandler {
                            AccountService accountService,
                            MarketStream marketStream,
                            MarketService marketService,
-                           EnvConfig envConfig) {
+                           EnvConfig envConfig,
+                           Map<RiskType, TradeProfile> tradeProfiles) {
         this.ordersService = ordersService;
         this.accountService = accountService;
         this.marketStream = marketStream;
@@ -58,20 +63,20 @@ public class ClientWebSocket extends TextWebSocketHandler {
         this.portfolio = portfolio;
         this.demoPortfolio = demoPortfolio;
         this.envConfig = envConfig;
+        this.tradeProfiles = tradeProfiles;
     }
 
     public void handleActiveClientWebSocketData() throws Exception {
         marketService.fetchMarketPrices();
+        sendData(new Record<>(WebSocketData.TradeProfiles.name(), tradeProfiles));
         if (envConfig.isDemo()) {
             List<Trade> allTrades = demoPortfolio.fetchAllTrades();
             sendData(new Record<>(WebSocketData.DEMO_TRADES.name(), allTrades));
-            Balance balance = new Balance();
-
-            sendData(new Record<>(WebSocketData.BALANCE.name(), balance));
+            sendData(new Record<>(WebSocketData.BALANCE.name(), accountService.getBalanceData()));
         } else {
             sendData(new Record<>(WebSocketData.BALANCE.name(), accountService.getBalanceData()));
         }
-            ordersService.fetchOrders();
+        ordersService.fetchOrders();
     }
 
     @Override

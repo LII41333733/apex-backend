@@ -1,17 +1,14 @@
 package com.project.apex.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.project.apex.config.EnvConfig;
 import com.project.apex.data.account.AccountBalance;
 import com.project.apex.data.account.Balance;
-import com.project.apex.model.Trade;
 import com.project.apex.repository.AccountBalanceRepository;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.client.methods.RequestBuilder;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -20,6 +20,7 @@ import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.FILL;
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeStatus.*;
+import static com.project.apex.util.Calculate.addQuantitiesByLimit;
 import static com.project.apex.util.TradeOrder.*;
 import static com.project.apex.util.TradeOrder.isRejected;
 
@@ -54,8 +55,14 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         logger.info("Total Equity: {}", totalEquity);
         double totalCash = balance.getTotalCash();
         logger.info("Total Cash: {}", totalCash);
-        int tradeAllotment =
-                trade instanceof VisionTrade ? 100 : (int) Math.floor(totalEquity * trade.getTradeAmountPercentage());
+
+        Double tradeAmountAllotment = trade.getTradeProfile().getTradeAmountAllotment();
+        Double tradeAmountPercentage = trade.getTradeProfile().getTradeAmountPercentage();
+
+        int tradeAllotment = (int) (tradeAmountAllotment != null
+                ? tradeAmountAllotment
+                : Math.floor(totalEquity * tradeAmountPercentage));
+
         logger.info("Trade Allotment: {}", tradeAllotment);
         logger.info("Trade Allotment < Total Cash: {}", tradeAllotment < totalCash);
         if (tradeAllotment < totalCash) {
@@ -212,33 +219,29 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                             logger.info("TradeManager.watch: {}: Order Unfilled (PENDING): {}", riskType, id);
                         }
                     }
-                    if (trade.getStatus().ordinal() < CANCELED.ordinal()) {
-                        setLastAndMaxPrices(trade);
-                        double lastPrice = trade.getLastPrice();
-
-                        if (isOpen) {
-                            logger.debug("TradeManager.watch: {}: Updating Stops and Trims: {}", riskType, id);
-
-                            if (!hasStopOrder && (lastPrice <= trade.getStopPrice())) {
+                    if (isOpen) {
+                        if (hasStopOrder && isFilled(stopOrder)) {
+                            trade.setStatus(FILLED);
+                            logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
+                        } else {
+                            setLastAndMaxPrices(trade);
+                            if (!hasStopOrder && (trade.getLastPrice() <= trade.getStopPrice())) {
                                 prepareMarketSell(trade, STOP);
                                 trade.setStatus(FILLED);
                                 logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
-                            } else if (hasStopOrder && isFilled(stopOrder)) {
-                                trade.setStatus(FILLED);
-                                logger.info("TradeManager.watch: {}: (OPEN/RUNNERS -> FILLED): {}", riskType, id);
                             } else {
-                                handleOpenTrades(trade, lastPrice, id, riskType, runnerTrades);
+                                handleOpenTrades(trade, trade.getLastPrice(), id, riskType, runnerTrades);
                                 openTrades.add(id);
                                 logger.info("TradeManager.watch: {}: Order Open: {}", riskType, id);
                             }
-                        } else if (isFilled) {
-                            filledTrades.add(id);
-
-                            if (trade.isFilled() && !trade.isFinalized() && hasStopOrder) {
-                                finalizeTrade(trade, tradeLegMap);
-                                trade.setStatus(FINALIZED);
-                                logger.info("TradeManager.watch: {}: (FILLED -> FINALIZED): {}", riskType, id);
-                            }
+                        }
+                    }
+                    if (isFilled) {
+                        filledTrades.add(id);
+                        if (trade.isFilled() && !trade.isFinalized() && hasStopOrder) {
+                            finalizeTrade(trade, tradeLegMap);
+                            trade.setStatus(FINALIZED);
+                            logger.info("TradeManager.watch: {}: (FILLED -> FINALIZED): {}", riskType, id);
                         }
                     }
                     allTrades.add(trade);
@@ -251,16 +254,8 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         return new TradeRecord<>(allTrades, pendingTrades, openTrades, runnerTrades, filledTrades, canceledTrades, rejectedTrades);
     }
 
-    public int addQuantitiesByLimit(List<Integer> quantities, int limit, boolean isExactIndex) {
-        if (isExactIndex) {
-            return quantities.get(limit);
-        }
-        return quantities.stream().limit(limit).mapToInt(Integer::intValue).sum();
-    }
-
     public void prepareMarketSell(T trade, TradeLeg tradeLeg) {
         logger.info("placeMarketSell: Start");
-        Map<String, String> parameters = new HashMap<>();
         Integer quantity;
         if (trade instanceof Trim2Tradeable trim2Tradeable) {
             List<Integer> quantities = List.of(
@@ -273,8 +268,8 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
                 case TRIM2 -> addQuantitiesByLimit(quantities, 1, true);
                 case STOP -> switch (trade.getTrimStatus()) {
                     case 0 -> addQuantitiesByLimit(quantities, 3, false);
-                    case 1 -> addQuantitiesByLimit(quantities.reversed(), 2, false);
-                    case 2 -> addQuantitiesByLimit(quantities.reversed(), 1, false);
+                    case 1 -> quantities.get(1) + quantities.get(2);
+                    case 2 -> quantities.get(2);
                     default -> throw new IllegalStateException("Unexpected value: " + trade.getTrimStatus());
                 };
                 default -> throw new IllegalStateException("Unexpected value: " + tradeLeg);
@@ -296,7 +291,7 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
         } else {
             quantity = trade.getQuantity();
         }
-
+        Map<String, String> parameters = new HashMap<>();
         parameters.put("quantity", String.valueOf(quantity));
         placeMarketSell(trade, tradeLeg, parameters);
     }
@@ -317,11 +312,6 @@ public abstract class TradeService<T extends Trade> implements TradeServiceInter
             T trade = tradeOpt.get();
             prepareMarketSell(trade, STOP);
         }
-    }
-
-    public static int getValueByQuantity(int quantity, double price) {
-        int contractCost = (int) (price * 100);
-        return quantity * contractCost;
     }
 
     public abstract void calculateStopsAndTrims(T trade);

@@ -1,9 +1,11 @@
 package com.project.apex.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.project.apex.data.trades.RiskType;
+import com.project.apex.data.trades.TradeProfile;
 import com.project.apex.data.trades.TradeStatus;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -12,12 +14,12 @@ import static com.project.apex.data.trades.TradeStatus.*;
 import static com.project.apex.data.trades.TradeStatus.FINALIZED;
 
 @MappedSuperclass
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "riskType")  // "type" should match the JSON field identifying the type
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "riskType", visible = true)  // "type" should match the JSON field identifying the type
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = BaseTrade.class, name = "BASE"),
-        @JsonSubTypes.Type(value = LottoTrade.class, name = "LOTTO"),
-        @JsonSubTypes.Type(value = VisionTrade.class, name = "VISION"),
-        @JsonSubTypes.Type(value = HeroTrade.class, name = "HERO")
+        @JsonSubTypes.Type(value = BaseTrade.class, name = "Base"),
+        @JsonSubTypes.Type(value = LottoTrade.class, name = "Lotto"),
+        @JsonSubTypes.Type(value = VisionTrade.class, name = "Vision"),
+        @JsonSubTypes.Type(value = HeroTrade.class, name = "Hero")
 })
 public abstract class Trade {
 
@@ -27,6 +29,8 @@ public abstract class Trade {
     @Column(name = "fill_order_id")
     private Long fillOrderId;
     @Column(name = "risk_type")
+    @Enumerated(EnumType.STRING)
+    @JsonProperty("riskType")
     private RiskType riskType;
     @Column(name = "pre_trade_balance")
     private Double preTradeBalance;
@@ -63,8 +67,6 @@ public abstract class Trade {
     private Double stopPrice;
     @Column(name = "stop_price_final")
     private Double stopPriceFinal = 0.0;
-    @Column(name = "runners_floor_price")
-    private Double runnersFloorPrice;
     @Column(name = "quantity")
     private Integer quantity = 0;
     @Column(name = "runners_quantity")
@@ -73,22 +75,22 @@ public abstract class Trade {
     private Double stopPercentage = (double) 0;
     @Column(name = "runners_floor_active")
     private Boolean runnersFloorIsActive = false;
-
+    @JsonIgnore
+    @Transient
+    @Column(name = "tradeProfile")
+    private TradeProfile tradeProfile;
     @JsonIgnore
     @Transient
     private int[] demoOutcomePercentages = {};
-    @JsonIgnore
-    @Transient
     private double tradeAmountPercentage = 0;
 
-    public Trade(RiskType riskType,
-                 double tradeAmountPercentage,
-                 double stopPercentage,
-                 int[] demoOutcomePercentages) {
-        this.riskType = riskType;
-        this.tradeAmountPercentage = tradeAmountPercentage;
-        this.demoOutcomePercentages = demoOutcomePercentages;
-        this.stopPercentage = stopPercentage;
+
+    public Trade(TradeProfile tradeProfile) {
+        this.tradeProfile = tradeProfile;
+        this.riskType = tradeProfile.getRiskType();
+    }
+
+    public Trade() {
     }
 
     @JsonIgnore
@@ -263,5 +265,12 @@ public abstract class Trade {
     }
     public void setRunnersFloorIsActive(Boolean runnersFloorIsActive) {
         this.runnersFloorIsActive = runnersFloorIsActive;
+    }
+    public TradeProfile getTradeProfile() {
+        return tradeProfile;
+    }
+
+    public void setRiskType(RiskType riskType) {
+        this.riskType = riskType;
     }
 }

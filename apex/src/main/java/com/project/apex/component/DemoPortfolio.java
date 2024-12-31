@@ -3,7 +3,9 @@ package com.project.apex.component;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.project.apex.data.trades.TradeFactory;
-import com.project.apex.model.Trade;
+import com.project.apex.data.trades.Trim1Tradeable;
+import com.project.apex.data.trades.Trim2Tradeable;
+import com.project.apex.model.*;
 import com.project.apex.util.Record;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.DependsOn;
@@ -21,8 +23,6 @@ public class DemoPortfolio {
     ClientWebSocket clientWebSocket;
 
     List<Trade> allTrades;
-    List<Trade> positivePlTrades = new ArrayList<>();
-    List<Trade> negativePlTrades = new ArrayList<>();
 
     @Autowired
     public DemoPortfolio(TradeFactory tradeFactory, ClientWebSocket clientWebSocket) {
@@ -32,6 +32,8 @@ public class DemoPortfolio {
 
     public List<Trade> fetchAllTrades() {
         ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.findAndRegisterModules();
+
         objectMapper.registerModule(new JavaTimeModule());
 
         try {
@@ -40,14 +42,6 @@ public class DemoPortfolio {
                     new File("demoTrades.json"),
                     objectMapper.getTypeFactory().constructCollectionType(List.class, Trade.class)
             );
-
-            for (Trade trade : allTrades) {
-                if (trade.getPl() >= 0 && trade.getPostTradeBalance() < 750000) {
-                    positivePlTrades.add(trade);
-                } else {
-                    negativePlTrades.add(trade);
-                }
-            }
 
         } catch (IOException e) {
             e.printStackTrace();

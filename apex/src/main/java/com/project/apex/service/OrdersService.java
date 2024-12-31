@@ -50,14 +50,14 @@ public class OrdersService {
                 logger.info("OrdersService.fetchOrders: No orders found");
             } else {
                 RiskMap ordersByRiskType = handleMapOrdersByRiskType(orders);
-                TradeMap baseTradeMap = ordersByRiskType.get(BASE);
-                TradeMap visionTradeMap = ordersByRiskType.get(VISION);
-                TradeMap lottoTradeMap = ordersByRiskType.get(LOTTO);
-                TradeMap heroTradeMap = ordersByRiskType.get(HERO);
-                TradeRecord<BaseTrade> baseTradeRecord = tradeFactory.watch(BASE, baseTradeMap);
-                TradeRecord<VisionTrade> visionTradeRecord = tradeFactory.watch(VISION, visionTradeMap);
-                TradeRecord<LottoTrade> lottoTradeRecord = tradeFactory.watch(LOTTO, lottoTradeMap);
-                TradeRecord<HeroTrade> heroTradeRecord = tradeFactory.watch(HERO, heroTradeMap);
+                TradeMap baseTradeMap = ordersByRiskType.get(Base);
+                TradeMap visionTradeMap = ordersByRiskType.get(Vision);
+                TradeMap lottoTradeMap = ordersByRiskType.get(Lotto);
+                TradeMap heroTradeMap = ordersByRiskType.get(Hero);
+                TradeRecord<BaseTrade> baseTradeRecord = tradeFactory.watch(Base, baseTradeMap);
+                TradeRecord<VisionTrade> visionTradeRecord = tradeFactory.watch(Vision, visionTradeMap);
+                TradeRecord<LottoTrade> lottoTradeRecord = tradeFactory.watch(Lotto, lottoTradeMap);
+                TradeRecord<HeroTrade> heroTradeRecord = tradeFactory.watch(Hero, heroTradeMap);
                 clientWebSocket.sendData(
                         new Record<>(
                                 WebSocketData.POSITIONS.name(),

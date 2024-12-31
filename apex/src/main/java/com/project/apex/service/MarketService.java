@@ -180,44 +180,6 @@ public class MarketService {
         this.symbolList = symbolList;
     }
 
-    public Map<String, QuoteData> getOptionsMap() {
-        return optionsMap;
-    }
-
-    public void setDemoOptionsChain() throws IOException {
-        String str = objectMapper.writeValueAsString(Files.newInputStream(Paths.get("src/main/resources/json/optionsChainExampleListOnly.json")));
-
-        final Random random = new Random();
-        Timer timer = new Timer();
-        timer.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                for (Map.Entry<String, QuoteData> entry : optionsMap.entrySet()) {
-                    QuoteData quote = entry.getValue();
-
-                    // Generate random bid and ask prices
-                    Double bid = Math.round(random.nextDouble() * 200.0) / 100.0;
-                    Double ask = Math.round(random.nextDouble() * 200.0) / 100.0;
-
-                    // Update bid and ask
-                    quote.setBid(bid);
-                    quote.setAsk(ask);
-
-                    // Print the updated quote
-//                        System.out.println("Updated QuoteData: " + quote);
-
-                    try {
-                        clientWebSocket.sendData(quote);
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-
-                    timer.cancel();
-                }
-            }
-        }, 0, 2000); // Runs every 5 seconds
-    }
-
     public void fetchMarketPrices() {
         String concatStrings = Arrays.stream(Constants.SYMBOLS).reduce("", (a, b) -> a + "," + b);
         String stripped = concatStrings.substring(1, concatStrings.length() - 1);

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.project.apex.data.trades.*;
 import com.project.apex.model.BaseTrade;
 import com.project.apex.repository.BaseTradeRepository;
-import com.project.apex.util.Calculate;
 import com.project.apex.util.Quantities;
 import com.project.apex.util.Record;
 import org.slf4j.Logger;
@@ -15,6 +14,7 @@ import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.*;
 import static com.project.apex.data.trades.TradeStatus.RUNNERS;
 import static com.project.apex.util.Calculate.getPercentValue;
+import static com.project.apex.util.Calculate.getValueByQuantity;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
@@ -35,9 +35,9 @@ public class BaseTradeService extends TradeService<BaseTrade> {
         int trim2Quantity = quantities.get(1);
         int runnersQuantity = quantities.get(2);
         double ask = trade.getFillPrice();
-        double stopPrice = roundedDouble(ask * (1 - trade.getStopPercentage()));
-        double trim1Price = roundedDouble(ask * (1 + trade.getTrim1Percentage()));
-        double trim2Price = roundedDouble(ask * (1 + trade.getTrim2Percentage()));
+        double stopPrice = roundedDouble(ask * (1 - trade.getTradeProfile().getStopPercentage()));
+        double trim1Price = roundedDouble(ask * (1 + trade.getTradeProfile().getTrim1Percentage()));
+        double trim2Price = roundedDouble(ask * (1 + trade.getTradeProfile().getTrim2Percentage()));
         trade.setStopPrice(stopPrice);
         trade.setTrim1Price(trim1Price);
         trade.setTrim2Price(trim2Price);

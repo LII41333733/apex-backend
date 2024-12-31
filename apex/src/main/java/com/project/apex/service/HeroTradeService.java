@@ -14,6 +14,7 @@ import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeLeg.TRIM1;
 import static com.project.apex.data.trades.TradeStatus.RUNNERS;
 import static com.project.apex.util.Calculate.getPercentValue;
+import static com.project.apex.util.Calculate.getValueByQuantity;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 

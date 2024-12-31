@@ -13,6 +13,7 @@ import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.STOP;
 import static com.project.apex.data.trades.TradeLeg.TRIM1;
 import static com.project.apex.util.Calculate.getPercentValue;
+import static com.project.apex.util.Calculate.getValueByQuantity;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
@@ -32,8 +33,8 @@ public class LottoTradeService extends TradeService<LottoTrade> {
         int trim1Quantity = (int) Math.round(trade.getQuantity() * 0.7);
         int runnersQuantity = trade.getQuantity() - trim1Quantity;
         double ask = trade.getFillPrice();
-        double stopPrice = roundedDouble(ask * (1 - trade.getStopPercentage()));
-        double trim1Price = roundedDouble(ask * (1 + trade.getTrim1Percentage()));
+        double stopPrice = roundedDouble(ask * (1 - trade.getTradeProfile().getStopPercentage()));
+        double trim1Price = roundedDouble(ask * (1 + trade.getTradeProfile().getTrim1Percentage()));
         trade.setStopPrice(stopPrice);
         trade.setTrim1Price(trim1Price);
         trade.setFillPrice(ask);

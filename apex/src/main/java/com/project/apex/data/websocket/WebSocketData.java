@@ -7,5 +7,6 @@ public enum WebSocketData {
     POSITIONS,
     QUOTE,
     SYMBOLS,
-    TRADES
+    TRADES,
+    TradeProfiles
 }

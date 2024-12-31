@@ -13,14 +13,11 @@ public class Trim2Tradeable extends Trim1Tradeable implements Trim2TradeableImpl
     @Column(name = "trim2_percentage")
     private Double trim2Percentage = (double) 0;
 
-    public Trim2Tradeable(RiskType riskType,
-                          double tradeAmountPercentage,
-                          double stopPercentage,
-                          double trim1Percentage,
-                          double trim2Percentage,
-                          int[] demoOutcomePercentages) {
-        super(riskType, tradeAmountPercentage, stopPercentage, trim1Percentage, demoOutcomePercentages);
-        this.trim2Percentage = trim2Percentage;
+    public Trim2Tradeable(TradeProfile tradeProfile) {
+        super(tradeProfile);
+    }
+
+    public Trim2Tradeable() {
     }
 
     public Double getTrim2Price() {

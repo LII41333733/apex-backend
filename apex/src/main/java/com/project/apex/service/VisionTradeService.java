@@ -14,6 +14,7 @@ import java.util.*;
 import static com.project.apex.data.trades.TradeLeg.*;
 import static com.project.apex.data.trades.TradeStatus.RUNNERS;
 import static com.project.apex.util.Calculate.getPercentValue;
+import static com.project.apex.util.Calculate.getValueByQuantity;
 import static com.project.apex.util.Convert.roundedDouble;
 import static com.project.apex.util.TradeOrder.*;
 
@@ -34,9 +35,9 @@ public class VisionTradeService extends TradeService<VisionTrade> {
         int trim2Quantity = quantities.get(1);
         int runnersQuantity = quantities.get(2);
         double ask = trade.getFillPrice();
-        double stopPrice = roundedDouble(ask * (1 - trade.getStopPercentage()));
-        double trim1Price = roundedDouble(ask * (1 + trade.getTrim1Percentage()));
-        double trim2Price = roundedDouble(ask * (1 + trade.getTrim2Percentage()));
+        double stopPrice = roundedDouble(ask * (1 - trade.getTradeProfile().getStopPercentage()));
+        double trim1Price = roundedDouble(ask * (1 + trade.getTradeProfile().getTrim1Percentage()));
+        double trim2Price = roundedDouble(ask * (1 + trade.getTradeProfile().getTrim2Percentage()));
         trade.setStopPrice(stopPrice);
         trade.setTrim1Price(trim1Price);
         trade.setTrim2Price(trim2Price);
